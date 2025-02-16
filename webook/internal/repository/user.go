@@ -24,6 +24,7 @@ func NewUserRepository(dao *dao.UserDAO) *UserRepository {
 func (r *UserRepository) Create(ctx context.Context, u domain.User) error {
 	// 保存到数据库
 	return r.dao.Insert(ctx, dao.User{
+		Id:       u.Id,
 		Email:    u.Email,
 		Password: u.Password,
 	})

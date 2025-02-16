@@ -5,7 +5,11 @@ import (
 	"go-basic/webook/internal/repository/dao"
 	"go-basic/webook/internal/service"
 	"go-basic/webook/internal/web"
+	"go-basic/webook/internal/web/middleware"
 	"time"
+
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -33,6 +37,11 @@ func initWebServer() *gin.Engine {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
+	store := cookie.NewStore([]byte("secret"))
+	server.Use(sessions.Sessions("webook", store))
+
+	// cookie 中间件，登录校验
+	server.Use(middleware.NewLoginMiddlewareBuilder().IgnorePaths("/users/login").IgnorePaths("/users/signup").Build())
 	return server
 }
 
