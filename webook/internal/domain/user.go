@@ -1,7 +1,9 @@
 package domain
 
-type User struct {
-	Addr string
-}
+import "time"
 
-type Address struct{}
+type User struct {
+	Email    string
+	Password string
+	Ctime    time.Time
+}
