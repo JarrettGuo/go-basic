@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
+	"github.com/gin-contrib/sessions/redis"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -37,7 +37,10 @@ func initWebServer() *gin.Engine {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
-	store := cookie.NewStore([]byte("secret"))
+	store, err := redis.NewStore(16, "tcp", "localhost:6379", "", []byte("5131ee22610a224ca4e0869375383995"), []byte("6131ee22610a224ca4e0869375383995"))
+	if err != nil {
+		panic(err)
+	}
 	server.Use(sessions.Sessions("webook", store))
 
 	// cookie 中间件，登录校验
@@ -46,7 +49,7 @@ func initWebServer() *gin.Engine {
 }
 
 func initDB() *gorm.DB {
-	db, err := gorm.Open(mysql.Open("root:root@tcp(localhost:13316)/webook"))
+	db, err := gorm.Open(mysql.Open("root:root@tcp(localhost:3306)/webook"))
 	if err != nil {
 		panic(err)
 	}

@@ -42,8 +42,28 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (domain.
 	}, nil
 }
 
-func (r *UserRepository) FindById(int64) {
+func (r *UserRepository) UpdateUserProfile(ctx context.Context, u domain.User) error {
+	// 更新用户信息
+	return r.dao.UpdateUserProfile(ctx, dao.User{
+		Nickname: u.Nickname,
+		Birthday: u.Birthday,
+		Desc:     u.Desc,
+	})
+}
+
+func (r *UserRepository) FindById(ctx context.Context, Id int64) (domain.User, error) {
 	// 先从 cache 中查找
 	// 如果 cache 中没有，再从数据库中查找
+	user, err := r.dao.FindById(ctx, Id)
+	if err != nil {
+		return domain.User{}, err
+	}
 	// 找到后，将数据写入 cache
+	return domain.User{
+		Email:    user.Email,
+		Nickname: user.Nickname,
+		Birthday: user.Birthday,
+		Desc:     user.Desc,
+		Password: user.Password,
+	}, nil
 }
