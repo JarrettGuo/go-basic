@@ -1,12 +1,14 @@
 package web
 
 import (
+	"fmt"
 	"go-basic/webook/internal/domain"
 	"go-basic/webook/internal/service"
 	"net/http"
 
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
+	jwt "github.com/golang-jwt/jwt/v5"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,7 +47,7 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 
 func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug := server.Group("/users")
-	ug.POST("/login", u.Login)
+	ug.POST("/login", u.LoginJWT)
 	ug.POST("/signup", u.SignUp)
 	ug.PUT("/edit", u.Edit)
 	ug.GET("/profile", u.Profile)
@@ -83,6 +85,39 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 	// 保存 session
 	sess.Save()
 
+	ctx.String(http.StatusOK, "登录成功")
+	return
+}
+
+func (u *UserHandler) LoginJWT(ctx *gin.Context) {
+	type LoginReq struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	var req LoginReq
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+	// 调用 service 层的登录方法
+	user, err := u.svc.Login(ctx, req.Email, req.Password)
+	if err == service.ErrInvalidUserOrPassword {
+		ctx.String(http.StatusOK, "账户或密码错误")
+		return
+	}
+	if err != nil {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+
+	// 用 JWT 设置登录态
+	token := jwt.New(jwt.SigningMethodHS512)
+	tokenStr, err := token.SignedString([]byte("5131ee22610a224ca4e0869375383995"))
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, "系统错误")
+		return
+	}
+	ctx.Header("x-jwt-token", tokenStr)
+	fmt.Println(user)
 	ctx.String(http.StatusOK, "登录成功")
 	return
 }

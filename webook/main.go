@@ -30,9 +30,10 @@ func initWebServer() *gin.Engine {
 	server := gin.Default()
 
 	server.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"http://localhost:3000"},
-		AllowMethods: []string{"GET", "POST", "PUT", "DELETE"},
-		AllowHeaders: []string{"Authorization", "Content-Type"},
+		AllowOrigins:  []string{"http://localhost:3000"},
+		AllowMethods:  []string{"GET", "POST", "PUT", "DELETE"},
+		AllowHeaders:  []string{"Authorization", "Content-Type"},
+		ExposeHeaders: []string{"x-jwt-token"},
 		// 是否允许携带 cookie
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
@@ -44,7 +45,7 @@ func initWebServer() *gin.Engine {
 	server.Use(sessions.Sessions("webook", store))
 
 	// cookie 中间件，登录校验
-	server.Use(middleware.NewLoginMiddlewareBuilder().IgnorePaths("/users/login").IgnorePaths("/users/signup").Build())
+	server.Use(middleware.NewLoginJWTMiddlewareBuilder().IgnorePaths("/users/login").IgnorePaths("/users/signup").Build())
 	return server
 }
 
