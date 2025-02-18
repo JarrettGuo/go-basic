@@ -5,6 +5,7 @@ import (
 	"go-basic/webook/internal/domain"
 	"go-basic/webook/internal/service"
 	"net/http"
+	"time"
 
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
@@ -50,7 +51,7 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug.POST("/login", u.LoginJWT)
 	ug.POST("/signup", u.SignUp)
 	ug.PUT("/edit", u.Edit)
-	ug.GET("/profile", u.Profile)
+	ug.GET("/profile", u.ProfileJWT)
 }
 
 func (u *UserHandler) Login(ctx *gin.Context) {
@@ -110,7 +111,13 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 	}
 
 	// 用 JWT 设置登录态
-	token := jwt.New(jwt.SigningMethodHS512)
+	claims := UserClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+		},
+		Uid: user.Id,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
 	tokenStr, err := token.SignedString([]byte("5131ee22610a224ca4e0869375383995"))
 	if err != nil {
 		ctx.String(http.StatusInternalServerError, "系统错误")
@@ -252,4 +259,26 @@ func (u *UserHandler) Profile(ctx *gin.Context) {
 		return
 	}
 	ctx.String(http.StatusOK, "用户信息：%+v", user)
+}
+
+func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
+	c, _ := ctx.Get("claims")
+	claims, ok := c.(*UserClaims)
+	if !ok {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	// 调用 service 层的获取用户信息方法
+	user, err := u.svc.Profile(ctx, claims.Uid)
+	if err != nil {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	ctx.String(http.StatusOK, "用户信息：%+v", user)
+}
+
+type UserClaims struct {
+	jwt.RegisteredClaims
+	// 声明自定义字段
+	Uid int64
 }

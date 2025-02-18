@@ -2,12 +2,13 @@ package middleware
 
 import (
 	"encoding/gob"
+	"go-basic/webook/internal/web"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
+	jwt "github.com/golang-jwt/jwt/v5"
 )
 
 type LoginJWTMiddlewareBuilder struct {
@@ -45,16 +46,32 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			return
 		}
 		tokenStr := segs[1]
-		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+		claims := &web.UserClaims{}
+		// ParseWithClaims 中一定要传递一个 claims 的实例，否则会 panic
+		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte("5131ee22610a224ca4e0869375383995"), nil
 		})
 		if err != nil {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
-		if !token.Valid {
+		if token == nil || !token.Valid || claims.Uid == 0 {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
+		// 每十秒刷新一次 token
+		now := time.Now()
+		if claims.ExpiresAt.Sub(now) < time.Second*50 {
+			// 更新 token 过期时间，然后重新设置到 header 中
+			claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute))
+			tokenStr, err = token.SignedString([]byte("5131ee22610a224ca4e0869375383995"))
+			if err != nil {
+				ctx.AbortWithStatus(http.StatusInternalServerError)
+				return
+			}
+			ctx.Header("x-jwt-token", tokenStr)
+		}
+
+		ctx.Set("claims", claims)
 	}
 }
