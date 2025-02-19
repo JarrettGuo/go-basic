@@ -6,10 +6,12 @@ import (
 	"go-basic/webook/internal/service"
 	"go-basic/webook/internal/web"
 	"go-basic/webook/internal/web/middleware"
+	"go-basic/webook/pkg/ginx/middlewares/ratelimit"
 	"time"
 
 	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/redis"
+	"github.com/gin-contrib/sessions/memstore"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -29,6 +31,10 @@ func main() {
 func initWebServer() *gin.Engine {
 	server := gin.Default()
 
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
+	server.Use(ratelimit.NewBuilder(redisClient, time.Second, 100).Build())
 	server.Use(cors.New(cors.Config{
 		AllowOrigins:  []string{"http://localhost:3000"},
 		AllowMethods:  []string{"GET", "POST", "PUT", "DELETE"},
@@ -38,10 +44,11 @@ func initWebServer() *gin.Engine {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
-	store, err := redis.NewStore(16, "tcp", "localhost:6379", "", []byte("5131ee22610a224ca4e0869375383995"), []byte("6131ee22610a224ca4e0869375383995"))
-	if err != nil {
-		panic(err)
-	}
+	// store, err := redis.NewStore(16, "tcp", "localhost:6379", "", []byte("5131ee22610a224ca4e0869375383995"), []byte("6131ee22610a224ca4e0869375383995"))
+	// if err != nil {
+	// 	panic(err)
+	// }
+	store := memstore.NewStore([]byte("5131ee22610a224ca4e0869375383995"), []byte("6131ee22610a224ca4e0869375383995"))
 	server.Use(sessions.Sessions("webook", store))
 
 	// cookie 中间件，登录校验

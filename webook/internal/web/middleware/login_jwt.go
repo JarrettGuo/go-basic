@@ -59,6 +59,11 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
+		if claims.UserAgent != ctx.Request.UserAgent() {
+			// 用户代理不一致，可能是 token 被盗用
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
 		// 每十秒刷新一次 token
 		now := time.Now()
 		if claims.ExpiresAt.Sub(now) < time.Second*50 {
