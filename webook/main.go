@@ -1,7 +1,9 @@
 package main
 
 import (
+	"go-basic/webook/config"
 	"go-basic/webook/internal/repository"
+	"go-basic/webook/internal/repository/cache"
 	"go-basic/webook/internal/repository/dao"
 	"go-basic/webook/internal/service"
 	"go-basic/webook/internal/web"
@@ -69,8 +71,12 @@ func initDB() *gorm.DB {
 }
 
 func initUser(db *gorm.DB) *web.UserHandler {
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: config.Config.Redis.Addr,
+	})
 	ud := dao.NewUserDAO(db)
-	repo := repository.NewUserRepository(ud)
+	userCache := cache.NewUserCache(redisClient, time.Minute*15)
+	repo := repository.NewUserRepository(ud, userCache)
 	svc := service.NewUserService(repo)
 	u := web.NewUserHandler(svc)
 	return u

@@ -6,6 +6,7 @@ import (
 	"go-basic/webook/internal/domain"
 	"go-basic/webook/internal/repository"
 
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -13,7 +14,8 @@ var ErrUserDuplicateEmail = repository.ErrUserDuplicateEmail
 var ErrInvalidUserOrPassword = errors.New("账户或密码错误")
 
 type UserService struct {
-	repo *repository.UserRepository
+	repo  *repository.UserRepository
+	redis *redis.Client
 }
 
 func NewUserService(repo *repository.UserRepository) *UserService {
@@ -63,5 +65,6 @@ func (svc *UserService) Edit(ctx context.Context, user domain.User) error {
 }
 
 func (svc *UserService) Profile(ctx context.Context, id int64) (domain.User, error) {
+	// 先从缓存获得 user 信息
 	return svc.repo.FindById(ctx, id)
 }
