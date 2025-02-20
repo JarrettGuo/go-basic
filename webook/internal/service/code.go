@@ -30,7 +30,7 @@ func (svc *CodeService) Send(ctx context.Context, biz string, phone string) erro
 }
 
 func (svc *CodeService) Verify(ctx context.Context, biz string, phone string, code string) (bool, error) {
-	panic("not implemented") // TODO: Implement
+	return svc.repo.Verify(ctx, biz, phone, code)
 }
 
 func (svc *CodeService) generateCode() string {

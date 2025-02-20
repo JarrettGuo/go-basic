@@ -10,11 +10,16 @@ import (
 )
 
 var (
-	ErrCodeSendTooMany = fmt.Errorf("send code too frequently")
+	ErrCodeSendTooMany        = fmt.Errorf("发送验证码太频繁")
+	ErrCodeVerifyTooManyTimes = fmt.Errorf("验证码验证次数过多")
+	ErrUnknownForCode         = errors.New("未知错误")
 )
 
 //go:embed lua/set_code.lua
 var luaSetCode string
+
+//go:embed lua/verify_code.lua
+var luaVerifyCode string
 
 type CodeCache struct {
 	client redis.Cmdable
@@ -41,6 +46,23 @@ func (c *CodeCache) Set(ctx context.Context, biz, phone, code string) error {
 	default:
 		// system error
 		return errors.New("system error")
+	}
+}
+
+func (c *CodeCache) Verify(ctx context.Context, biz, phone, code string) (bool, error) {
+	res, err := c.client.Eval(ctx, luaVerifyCode, []string{c.key(biz, phone)}, code).Int()
+	if err != nil {
+		return false, err
+	}
+	switch res {
+	case 0:
+		return true, nil
+	case -1:
+		return false, ErrCodeVerifyTooManyTimes
+	case -2:
+		return false, nil
+	default:
+		return false, ErrUnknownForCode
 	}
 }
 
