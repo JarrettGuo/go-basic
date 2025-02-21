@@ -22,7 +22,7 @@ var (
 const biz = "login"
 
 type UserHandler struct {
-	svc         *service.UserService
+	svc         service.UserService
 	emailExp    *regexp.Regexp
 	passwordExp *regexp.Regexp
 	nicknameExp *regexp.Regexp
@@ -30,10 +30,10 @@ type UserHandler struct {
 	descExp     *regexp.Regexp
 	phoneExp    *regexp.Regexp
 	codeExp     *regexp.Regexp
-	codeSvc     *service.CodeService
+	codeSvc     service.CodeService
 }
 
-func NewUserHandler(svc *service.UserService, codeSvc *service.CodeService) *UserHandler {
+func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserHandler {
 	const (
 		emailRegexPattern = `^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$`
 		passwordPattern   = `^[a-zA-Z0-9_-]{6,18}$`
