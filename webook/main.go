@@ -1,11 +1,11 @@
 package main
 
 import (
-	"go-basic/webook/config"
 	"go-basic/webook/internal/repository"
 	"go-basic/webook/internal/repository/cache"
 	"go-basic/webook/internal/repository/dao"
 	"go-basic/webook/internal/service"
+	"go-basic/webook/internal/service/sms/memory"
 	"go-basic/webook/internal/web"
 	"go-basic/webook/internal/web/middleware"
 	"go-basic/webook/pkg/ginx/middlewares/ratelimit"
@@ -23,14 +23,14 @@ import (
 
 func main() {
 	db := initDB()
-	server := initWebServer()
-	u := initUser(db)
+	rdb, server := initWebServer()
+	u := initUser(db, rdb)
 	u.RegisterRoutes(server)
 
 	server.Run(":8080")
 }
 
-func initWebServer() *gin.Engine {
+func initWebServer() (*redis.Client, *gin.Engine) {
 	server := gin.Default()
 
 	redisClient := redis.NewClient(&redis.Options{
@@ -54,8 +54,13 @@ func initWebServer() *gin.Engine {
 	server.Use(sessions.Sessions("webook", store))
 
 	// cookie 中间件，登录校验
-	server.Use(middleware.NewLoginJWTMiddlewareBuilder().IgnorePaths("/users/login").IgnorePaths("/users/signup").Build())
-	return server
+	server.Use(middleware.NewLoginJWTMiddlewareBuilder().
+		IgnorePaths("/users/login").
+		IgnorePaths("/users/signup").
+		IgnorePaths("/users/login_sms/code/send").
+		IgnorePaths("/users/login_sms").
+		Build())
+	return redisClient, server
 }
 
 func initDB() *gorm.DB {
@@ -70,14 +75,15 @@ func initDB() *gorm.DB {
 	return db
 }
 
-func initUser(db *gorm.DB) *web.UserHandler {
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: config.Config.Redis.Addr,
-	})
+func initUser(db *gorm.DB, rdb redis.Cmdable) *web.UserHandler {
 	ud := dao.NewUserDAO(db)
-	userCache := cache.NewUserCache(redisClient, time.Minute*15)
+	userCache := cache.NewUserCache(rdb, time.Minute*15)
 	repo := repository.NewUserRepository(ud, userCache)
 	svc := service.NewUserService(repo)
-	u := web.NewUserHandler(svc)
+	codeCache := cache.NewCodeCache(rdb)
+	codeRepo := repository.NewCodeRepository(codeCache)
+	smsSvc := memory.NewService()
+	codeSvc := service.NewCodeService(codeRepo, smsSvc)
+	u := web.NewUserHandler(svc, codeSvc)
 	return u
 }
