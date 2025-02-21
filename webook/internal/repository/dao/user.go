@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -45,6 +46,12 @@ func (dao *UserDAO) FindByEmail(ctx context.Context, email string) (User, error)
 	return u, err
 }
 
+func (dao *UserDAO) FindByPhone(ctx context.Context, phone string) (User, error) {
+	var u User
+	err := dao.db.WithContext(ctx).Where("phone = ?", phone).First(&u).Error
+	return u, err
+}
+
 func (dao *UserDAO) FindById(ctx context.Context, id int64) (User, error) {
 	var u User
 	err := dao.db.WithContext(ctx).Where("id = ?", id).First(&u).Error
@@ -59,9 +66,11 @@ func (dao *UserDAO) UpdateUserProfile(ctx context.Context, u User) error {
 
 // 直接对应数据库表结构
 type User struct {
-	Id       int64  `gorm:"primaryKey,autoIncrement"`
-	Email    string `gorm:"unique"`
+	Id int64 `gorm:"primaryKey,autoIncrement"`
+	// 唯一索引，可以允许有多个空值，但是不能允许有多个""
+	Email    sql.NullString `gorm:"unique"`
 	Password string
+	Phone    sql.NullString `gorm:"unique"`
 	Nickname string
 	Birthday string
 	Desc     string

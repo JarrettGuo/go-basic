@@ -10,8 +10,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var ErrUserDuplicateEmail = repository.ErrUserDuplicateEmail
-var ErrInvalidUserOrPassword = errors.New("账户或密码错误")
+var (
+	ErrUserDuplicateEmail    = repository.ErrUserDuplicateEmail
+	ErrInvalidUserOrPassword = errors.New("账户或密码错误")
+)
 
 type UserService struct {
 	repo  *repository.UserRepository
@@ -67,4 +69,21 @@ func (svc *UserService) Edit(ctx context.Context, user domain.User) error {
 func (svc *UserService) Profile(ctx context.Context, id int64) (domain.User, error) {
 	// 先从缓存获得 user 信息
 	return svc.repo.FindById(ctx, id)
+}
+
+func (svc *UserService) FindOrCreate(ctx context.Context, phone string) (domain.User, error) {
+	// 先找到用户
+	u, err := svc.repo.FindByPhone(ctx, phone)
+	// 判断有没有用户
+	if err != repository.ErrUserNotFound {
+		return u, err
+	}
+	err = svc.repo.Create(ctx, domain.User{
+		Phone: phone,
+	})
+	if err != nil {
+		return u, err
+	}
+	// 再次查找，会遇到主从延迟的问题
+	return svc.repo.FindByPhone(ctx, phone)
 }

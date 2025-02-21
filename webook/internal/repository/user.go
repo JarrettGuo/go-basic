@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"go-basic/webook/internal/domain"
 	"go-basic/webook/internal/repository/cache"
 	"go-basic/webook/internal/repository/dao"
+	"time"
 )
 
 var (
@@ -26,12 +28,7 @@ func NewUserRepository(dao *dao.UserDAO, cache *cache.UserCache) *UserRepository
 
 func (r *UserRepository) Create(ctx context.Context, u domain.User) error {
 	// 保存到数据库
-	return r.dao.Insert(ctx, dao.User{
-		Id:       u.Id,
-		Email:    u.Email,
-		Password: u.Password,
-	})
-	// 保存到缓存
+	return r.dao.Insert(ctx, r.domainToEntity(u))
 }
 
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (domain.User, error) {
@@ -39,10 +36,15 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (domain.
 	if err != nil {
 		return domain.User{}, err
 	}
-	return domain.User{
-		Email:    user.Email,
-		Password: user.Password,
-	}, nil
+	return r.entityToDomain(user), nil
+}
+
+func (r *UserRepository) FindByPhone(ctx context.Context, phone string) (domain.User, error) {
+	user, err := r.dao.FindByPhone(ctx, phone)
+	if err != nil {
+		return domain.User{}, err
+	}
+	return r.entityToDomain(user), nil
 }
 
 func (r *UserRepository) UpdateUserProfile(ctx context.Context, u domain.User) error {
@@ -69,11 +71,7 @@ func (r *UserRepository) FindById(ctx context.Context, Id int64) (domain.User, e
 		return domain.User{}, err
 	}
 
-	user := domain.User{
-		Id:       ue.Id,
-		Email:    ue.Email,
-		Password: ue.Password,
-	}
+	user := r.entityToDomain(ue)
 	// 保存到缓存
 	go func() {
 		err = r.cache.Set(ctx, u)
@@ -82,4 +80,30 @@ func (r *UserRepository) FindById(ctx context.Context, Id int64) (domain.User, e
 		}
 	}()
 	return user, nil
+}
+
+func (r *UserRepository) entityToDomain(u dao.User) domain.User {
+	return domain.User{
+		Id:       u.Id,
+		Email:    u.Email.String,
+		Phone:    u.Phone.String,
+		Password: u.Password,
+		Ctime:    time.UnixMilli(u.Ctime),
+	}
+}
+
+func (r *UserRepository) domainToEntity(u domain.User) dao.User {
+	return dao.User{
+		Id: u.Id,
+		Email: sql.NullString{
+			String: u.Email,
+			Valid:  u.Email != "",
+		},
+		Phone: sql.NullString{
+			String: u.Phone,
+			Valid:  u.Phone != "",
+		},
+		Password: u.Password,
+		Ctime:    u.Ctime.UnixMilli(),
+	}
 }
