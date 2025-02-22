@@ -20,7 +20,7 @@ type UserDAO interface {
 	FindByEmail(ctx context.Context, email string) (User, error)
 	FindByPhone(ctx context.Context, phone string) (User, error)
 	FindById(ctx context.Context, id int64) (User, error)
-	UpdateUserProfile(ctx context.Context, u User) error
+	UpdateById(ctx context.Context, entity User) error
 }
 type GORMUserDAO struct {
 	db *gorm.DB
@@ -65,10 +65,14 @@ func (dao *GORMUserDAO) FindById(ctx context.Context, id int64) (User, error) {
 	return u, err
 }
 
-func (dao *GORMUserDAO) UpdateUserProfile(ctx context.Context, u User) error {
-	u.Utime = time.Now().UnixMilli()
-	err := dao.db.WithContext(ctx).Model(&u).Where("email = ?", u.Email).Updates(&u).Error
-	return err
+func (dao *GORMUserDAO) UpdateById(ctx context.Context, entity User) error {
+	return dao.db.WithContext(ctx).Model(&entity).Where("id = ?", entity.Id).
+		Updates(map[string]any{
+			"utime":    time.Now().UnixMilli(),
+			"nickname": entity.Nickname,
+			"birthday": entity.Birthday,
+			"desc":     entity.Desc,
+		}).Error
 }
 
 // 直接对应数据库表结构

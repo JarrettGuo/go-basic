@@ -364,59 +364,70 @@ func (u *UserHandler) Edit(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "描述格式错误")
 		return
 	}
-	// 获取 session 中的 userId
-	sess := sessions.Default(ctx)
-	userId := sess.Get("userId")
-	if userId == nil {
-		ctx.String(http.StatusUnauthorized, "请先登录")
-		return
-	}
-	// 调用 service 层的编辑方法
-	err = u.svc.Edit(ctx, domain.User{
+	uc := ctx.MustGet("user").(UserClaims)
+	err = u.svc.UpdateNonSensitiveInfo(ctx, domain.User{
+		Id:       uc.Uid,
 		Nickname: req.Nickname,
 		Birthday: req.Birthday,
 		Desc:     req.Desc,
-		Id:       userId.(int64),
 	})
 	if err != nil {
-		ctx.String(http.StatusOK, "系统错误")
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
 		return
 	}
-
-	ctx.String(http.StatusOK, "编辑成功")
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "修改成功",
+	})
 }
 
 func (u *UserHandler) Profile(ctx *gin.Context) {
-	// 获取 session 中的 userId
+	type Profile struct {
+		Email string
+	}
 	sess := sessions.Default(ctx)
-	userId := sess.Get("userId")
-	if userId == nil {
-		ctx.String(http.StatusUnauthorized, "请先登录")
-		return
-	}
-	// 调用 service 层的获取用户信息方法
-	user, err := u.svc.Profile(ctx, userId.(int64))
+	id := sess.Get("userId").(int64)
+	user, err := u.svc.Profile(ctx, id)
 	if err != nil {
-		ctx.String(http.StatusOK, "系统错误")
-		return
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
 	}
-	ctx.String(http.StatusOK, "用户信息：%+v", user)
+	ctx.JSON(http.StatusOK, Result{
+		Data: Profile{
+			Email: user.Email,
+		},
+	})
 }
 
 func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
-	c, _ := ctx.Get("claims")
-	claims, ok := c.(*UserClaims)
-	if !ok {
-		ctx.String(http.StatusOK, "系统错误")
-		return
+	type Profile struct {
+		Email    string
+		Phone    string
+		Nickname string
+		Birthday string
+		Desc     string
 	}
-	// 调用 service 层的获取用户信息方法
-	user, err := u.svc.Profile(ctx, claims.Uid)
+	uc := ctx.MustGet("user").(UserClaims)
+	user, err := u.svc.Profile(ctx, uc.Uid)
 	if err != nil {
-		ctx.String(http.StatusOK, "系统错误")
-		return
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
 	}
-	ctx.String(http.StatusOK, "用户信息：%+v", user)
+	ctx.JSON(http.StatusOK, Result{
+		Data: Profile{
+			Email:    user.Email,
+			Phone:    user.Phone,
+			Nickname: user.Nickname,
+			Birthday: user.Birthday,
+			Desc:     user.Desc,
+		},
+	})
 }
 
 func (*UserHandler) setJWTToken(uid int64, ctx *gin.Context) error {

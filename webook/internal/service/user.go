@@ -18,7 +18,7 @@ var (
 type UserService interface {
 	SignUp(ctx context.Context, u domain.User) error
 	Login(ctx context.Context, email, password string) (domain.User, error)
-	Edit(ctx context.Context, user domain.User) error
+	UpdateNonSensitiveInfo(ctx context.Context, user domain.User) error
 	Profile(ctx context.Context, id int64) (domain.User, error)
 	FindOrCreate(ctx context.Context, phone string) (domain.User, error)
 }
@@ -61,17 +61,8 @@ func (svc *userService) Login(ctx context.Context, email, password string) (doma
 	return u, nil
 }
 
-func (svc *userService) Edit(ctx context.Context, user domain.User) error {
-	// 更新用户信息
-	u, err := svc.repo.FindById(ctx, user.Id)
-	if err != nil {
-		return err
-	}
-	// 更新用户信息
-	u.Nickname = user.Nickname
-	u.Birthday = user.Birthday
-	u.Desc = user.Desc
-	return svc.repo.UpdateUserProfile(ctx, u)
+func (svc *userService) UpdateNonSensitiveInfo(ctx context.Context, user domain.User) error {
+	return svc.repo.UpdateNonZeroFields(ctx, user)
 }
 
 func (svc *userService) Profile(ctx context.Context, id int64) (domain.User, error) {

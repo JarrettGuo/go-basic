@@ -18,8 +18,8 @@ type UserRepository interface {
 	Create(ctx context.Context, u domain.User) error
 	FindByEmail(ctx context.Context, email string) (domain.User, error)
 	FindByPhone(ctx context.Context, phone string) (domain.User, error)
-	UpdateUserProfile(ctx context.Context, u domain.User) error
 	FindById(ctx context.Context, Id int64) (domain.User, error)
+	UpdateNonZeroFields(ctx context.Context, user domain.User) error
 }
 
 type CacheUserRepository struct {
@@ -53,15 +53,6 @@ func (r *CacheUserRepository) FindByPhone(ctx context.Context, phone string) (do
 		return domain.User{}, err
 	}
 	return r.entityToDomain(user), nil
-}
-
-func (r *CacheUserRepository) UpdateUserProfile(ctx context.Context, u domain.User) error {
-	// 更新用户信息
-	return r.dao.UpdateUserProfile(ctx, dao.User{
-		Nickname: u.Nickname,
-		Birthday: u.Birthday,
-		Desc:     u.Desc,
-	})
 }
 
 func (r *CacheUserRepository) FindById(ctx context.Context, Id int64) (domain.User, error) {
@@ -114,4 +105,8 @@ func (r *CacheUserRepository) domainToEntity(u domain.User) dao.User {
 		Password: u.Password,
 		Ctime:    u.Ctime.UnixMilli(),
 	}
+}
+
+func (r *CacheUserRepository) UpdateNonZeroFields(ctx context.Context, user domain.User) error {
+	return r.dao.UpdateById(ctx, r.domainToEntity(user))
 }
