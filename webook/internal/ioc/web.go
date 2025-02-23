@@ -4,6 +4,7 @@ import (
 	"go-basic/webook/internal/web"
 	"go-basic/webook/internal/web/middleware"
 	"go-basic/webook/pkg/ginx/middlewares/ratelimit"
+	ratelimitx "go-basic/webook/pkg/ratelimit"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -27,7 +28,7 @@ func InitMiddlewares(redisClient redis.Cmdable) []gin.HandlerFunc {
 			IgnorePaths("/users/login_sms/code/send").
 			IgnorePaths("/users/login_sms").
 			Build(),
-		ratelimit.NewBuilder(redisClient, time.Second, 100).Build(),
+		ratelimit.NewBuilder(ratelimitx.NewRedisSlidingWindowLimiter(redisClient, time.Second, 100)).Build(),
 	}
 }
 

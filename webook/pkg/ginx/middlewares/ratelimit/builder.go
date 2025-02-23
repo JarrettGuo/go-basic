@@ -2,32 +2,24 @@ package ratelimit
 
 import (
 	"fmt"
+	"go-basic/webook/pkg/ratelimit"
 	"log"
 	"net/http"
-	"time"
 
 	_ "embed"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 )
 
 type Builder struct {
 	prefix   string
-	cmd      redis.Cmdable
-	interval time.Duration
-	rate     int
+	limliter ratelimit.Limiter
 }
 
-//go:embed slide_window.lua
-var luaScript string
-
-func NewBuilder(cmd redis.Cmdable, interval time.Duration, rate int) *Builder {
+func NewBuilder(limiter ratelimit.Limiter) *Builder {
 	return &Builder{
-		cmd:      cmd,
+		limliter: limiter,
 		prefix:   "ip-limiter",
-		interval: interval,
-		rate:     rate,
 	}
 }
 
@@ -53,6 +45,6 @@ func (b *Builder) Build() gin.HandlerFunc {
 }
 
 func (b *Builder) limit(ctx *gin.Context) (bool, error) {
-	key := fmt.Sprintf("#{b.prefix}:#{ctx.ClientIP()}")
-	return b.cmd.Eval(ctx, luaScript, []string{key}, b.interval.Milliseconds(), b.rate, time.Now().UnixMilli()).Bool()
+	key := fmt.Sprintf("%s:%s", b.prefix, ctx.ClientIP())
+	return b.limliter.Limit(ctx, key)
 }
