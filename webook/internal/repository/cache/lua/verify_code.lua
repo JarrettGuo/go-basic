@@ -5,7 +5,7 @@ local code = redis.call("get", key)
 local cntKey = key..":cnt"
 -- 转成一个数字
 local cnt = tonumber(redis.call("get", cntKey))
-if cnt <= 0 then
+if cnt == nil or cnt <= 0 then
 --    说明，用户一直输错，有人搞你
 --    或者已经用过了，也是有人搞你
     return -1

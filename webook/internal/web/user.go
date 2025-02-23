@@ -169,18 +169,11 @@ func (u *UserHandler) SendLoginSMSCode(ctx *gin.Context) {
 	if !ok {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 4,
-			Msg:  "输入有误",
+			Msg:  "手机号输入有误",
 		})
 		return
 	}
 	err = u.codeSvc.Send(ctx, biz, req.Phone)
-	if err != nil {
-		ctx.JSON(http.StatusOK, Result{
-			Code: 5,
-			Msg:  "系统错误",
-		})
-		return
-	}
 	switch err {
 	case nil:
 		ctx.JSON(http.StatusOK, Result{

@@ -61,10 +61,8 @@ func (r *CacheUserRepository) FindById(ctx context.Context, Id int64) (domain.Us
 	if err == nil {
 		return u, nil
 	}
+
 	// 缓存中没有数据
-	if err == cache.ErrKeyNotExist {
-		// 去数据库中查找
-	}
 	ue, err := r.dao.FindById(ctx, Id)
 	if err != nil {
 		return domain.User{}, err
@@ -72,12 +70,13 @@ func (r *CacheUserRepository) FindById(ctx context.Context, Id int64) (domain.Us
 
 	user := r.entityToDomain(ue)
 	// 保存到缓存
-	go func() {
-		err = r.cache.Set(ctx, u)
-		if err != nil {
-			// 日志记录
-		}
-	}()
+	// go func() {
+	// 	err = r.cache.Set(ctx, u)
+	// 	if err != nil {
+	// 		// 日志记录
+	// 	}
+	// }()
+	_ = r.cache.Set(ctx, user)
 	return user, nil
 }
 
