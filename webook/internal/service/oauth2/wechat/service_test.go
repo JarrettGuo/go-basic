@@ -16,5 +16,5 @@ func Test_service_manual_VerifyCode(t *testing.T) {
 		panic("没有找到 WECHAT_APP_SECRET")
 	}
 	svc := NewService(appId, appKey)
-	svc.VerifyCode(context.Background(), "code", "state")
+	svc.VerifyCode(context.Background(), "code")
 }

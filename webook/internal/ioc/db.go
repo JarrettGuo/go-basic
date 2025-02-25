@@ -1,6 +1,7 @@
 package ioc
 
 import (
+	"go-basic/webook/config"
 	"go-basic/webook/internal/repository/dao"
 
 	"gorm.io/driver/mysql"
@@ -8,7 +9,7 @@ import (
 )
 
 func InitDB() *gorm.DB {
-	db, err := gorm.Open(mysql.Open("root:root@tcp(localhost:3306)/webook"))
+	db, err := gorm.Open(mysql.Open(config.Config.DB.DSN))
 	if err != nil {
 		panic(err)
 	}
