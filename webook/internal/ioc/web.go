@@ -12,10 +12,11 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func InitWebServer(mdls []gin.HandlerFunc, hdl *web.UserHandler) *gin.Engine {
+func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler, oauth2WechatHdl *web.OAuth2WechatHandler) *gin.Engine {
 	server := gin.Default()
 	server.Use(mdls...)
-	hdl.RegisterRoutes(server)
+	userHdl.RegisterRoutes(server)
+	oauth2WechatHdl.RegisterRoutes(server)
 	return server
 }
 
@@ -27,6 +28,8 @@ func InitMiddlewares(redisClient redis.Cmdable) []gin.HandlerFunc {
 			IgnorePaths("/users/signup").
 			IgnorePaths("/users/login_sms/code/send").
 			IgnorePaths("/users/login_sms").
+			IgnorePaths("/oauth2/wechat/authurl").
+			IgnorePaths("/oauth2/wechat/callback").
 			Build(),
 		ratelimit.NewBuilder(ratelimitx.NewRedisSlidingWindowLimiter(redisClient, time.Second, 100)).Build(),
 	}
