@@ -6,6 +6,8 @@ import (
 	"go-basic/webook/internal/domain"
 	"go-basic/webook/internal/service"
 	svcmocks "go-basic/webook/internal/service/mocks"
+	"go-basic/webook/internal/web/jwt"
+	jwtmocks "go-basic/webook/internal/web/jwt/mocks"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -21,7 +23,7 @@ func TestUserHandler_SignUp(t *testing.T) {
 	testCases := []struct {
 		name string
 
-		mock func(ctrl *gomock.Controller) (service.UserService, service.CodeService)
+		mock func(ctrl *gomock.Controller) (service.UserService, service.CodeService, jwt.Handler)
 
 		reqBody string
 
@@ -30,15 +32,16 @@ func TestUserHandler_SignUp(t *testing.T) {
 	}{
 		{
 			name: "注册成功",
-			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService, jwt.Handler) {
 				usersvc := svcmocks.NewMockUserService(ctrl)
 				codesvc := svcmocks.NewMockCodeService(ctrl)
+				jwthdl := jwtmocks.NewMockHandler(ctrl)
 
 				usersvc.EXPECT().SignUp(gomock.Any(), domain.User{
 					Email:    "12312121@qq.com",
 					Password: "123456789",
 				}).Return(nil)
-				return usersvc, codesvc
+				return usersvc, codesvc, jwthdl
 			},
 			reqBody: `
 					{
@@ -51,10 +54,11 @@ func TestUserHandler_SignUp(t *testing.T) {
 		},
 		{
 			name: "参数错误, bind失败",
-			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService, jwt.Handler) {
 				usersvc := svcmocks.NewMockUserService(ctrl)
 				codesvc := svcmocks.NewMockCodeService(ctrl)
-				return usersvc, codesvc
+				jwthdl := jwtmocks.NewMockHandler(ctrl)
+				return usersvc, codesvc, jwthdl
 			},
 			reqBody: `{
 				invalid json format
@@ -64,10 +68,11 @@ func TestUserHandler_SignUp(t *testing.T) {
 		},
 		{
 			name: "邮箱格式错误",
-			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService, jwt.Handler) {
 				usersvc := svcmocks.NewMockUserService(ctrl)
 				codesvc := svcmocks.NewMockCodeService(ctrl)
-				return usersvc, codesvc
+				jwthdl := jwtmocks.NewMockHandler(ctrl)
+				return usersvc, codesvc, jwthdl
 			},
 			reqBody: `
 					{
@@ -80,10 +85,11 @@ func TestUserHandler_SignUp(t *testing.T) {
 		},
 		{
 			name: "密码格式错误",
-			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService, jwt.Handler) {
 				usersvc := svcmocks.NewMockUserService(ctrl)
 				codesvc := svcmocks.NewMockCodeService(ctrl)
-				return usersvc, codesvc
+				jwthdl := jwtmocks.NewMockHandler(ctrl)
+				return usersvc, codesvc, jwthdl
 			},
 			reqBody: `
 					{
@@ -96,10 +102,11 @@ func TestUserHandler_SignUp(t *testing.T) {
 		},
 		{
 			name: "两次密码不一致",
-			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService, jwt.Handler) {
 				usersvc := svcmocks.NewMockUserService(ctrl)
 				codesvc := svcmocks.NewMockCodeService(ctrl)
-				return usersvc, codesvc
+				jwthdl := jwtmocks.NewMockHandler(ctrl)
+				return usersvc, codesvc, jwthdl
 			},
 			reqBody: `
 					{
@@ -112,14 +119,15 @@ func TestUserHandler_SignUp(t *testing.T) {
 		},
 		{
 			name: "邮箱已存在",
-			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService, jwt.Handler) {
 				usersvc := svcmocks.NewMockUserService(ctrl)
 				codesvc := svcmocks.NewMockCodeService(ctrl)
+				jwthdl := jwtmocks.NewMockHandler(ctrl)
 				usersvc.EXPECT().SignUp(gomock.Any(), domain.User{
 					Email:    "123@qq.com",
 					Password: "123456789",
 				}).Return(service.ErrUserDuplicateEmail)
-				return usersvc, codesvc
+				return usersvc, codesvc, jwthdl
 			},
 			reqBody: `
 				{
@@ -132,14 +140,15 @@ func TestUserHandler_SignUp(t *testing.T) {
 		},
 		{
 			name: "系统错误",
-			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService, jwt.Handler) {
 				usersvc := svcmocks.NewMockUserService(ctrl)
 				codesvc := svcmocks.NewMockCodeService(ctrl)
+				jwthdl := jwtmocks.NewMockHandler(ctrl)
 				usersvc.EXPECT().SignUp(gomock.Any(), domain.User{
 					Email:    "123@qq.com",
 					Password: "123456789",
 				}).Return(errors.New("系统错误"))
-				return usersvc, codesvc
+				return usersvc, codesvc, jwthdl
 			},
 			reqBody: `
 				{
@@ -156,8 +165,8 @@ func TestUserHandler_SignUp(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			server := gin.Default()
-			usersvc, codesvc := tc.mock(ctrl)
-			h := NewUserHandler(usersvc, codesvc)
+			usersvc, codesvc, jwthdl := tc.mock(ctrl)
+			h := NewUserHandler(usersvc, codesvc, jwthdl)
 			h.RegisterRoutes(server)
 
 			// 创建一个请求

@@ -1,13 +1,15 @@
 package web
 
 import (
-	"fmt"
 	"go-basic/webook/internal/domain"
 	"go-basic/webook/internal/service"
+	ijwt "go-basic/webook/internal/web/jwt"
 	"net/http"
 
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
+	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/gin-gonic/gin"
 )
@@ -29,10 +31,11 @@ type UserHandler struct {
 	phoneExp    *regexp.Regexp
 	codeExp     *regexp.Regexp
 	codeSvc     service.CodeService
-	jwtHandler
+	ijwt.Handler
+	cmd redis.Cmdable
 }
 
-func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserHandler {
+func NewUserHandler(svc service.UserService, codeSvc service.CodeService, ijwtHdl ijwt.Handler) *UserHandler {
 	const (
 		emailRegexPattern = `^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$`
 		passwordPattern   = `^[a-zA-Z0-9_-]{6,18}$`
@@ -59,6 +62,7 @@ func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserH
 		phoneExp:    phoneExp,
 		codeExp:     codeExp,
 		codeSvc:     codeSvc,
+		Handler:     ijwtHdl,
 	}
 }
 
@@ -70,6 +74,44 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug.GET("/profile", u.ProfileJWT)
 	ug.POST("/login_sms/code/send", u.SendLoginSMSCode)
 	ug.POST("/login_sms", u.LoginSMS)
+	ug.POST("/refresh_token", u.RefreshToken)
+}
+
+func (u *UserHandler) Logout(ctx *gin.Context) {
+	err := u.ClearToken(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "登出成功",
+	})
+}
+
+func (u *UserHandler) RefreshToken(ctx *gin.Context) {
+	// 只有这个接口，拿出来的才是 refresh token
+	refreshToken := u.ExtractToken(ctx)
+	var rc ijwt.RefreshClaims
+	token, err := jwt.ParseWithClaims(refreshToken, &rc, func(token *jwt.Token) (interface{}, error) {
+		return ijwt.RtKey, nil
+	})
+	if err != nil || !token.Valid {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	err = u.SetJWTToken(ctx, rc.Uid, rc.Ssid)
+	if err != nil {
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+	// 检查 redis 中是否存在这个 ssid
+	err = u.CheckSession(ctx, rc.Ssid)
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "刷新成功",
+	})
 }
 
 func (u *UserHandler) LoginSMS(ctx *gin.Context) {
@@ -136,7 +178,7 @@ func (u *UserHandler) LoginSMS(ctx *gin.Context) {
 		})
 		return
 	}
-	if err = u.setJWTToken(user.Id, ctx); err != nil {
+	if err = u.SetLoginToken(ctx, user.Id); err != nil {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
 			Msg:  "系统错误",
@@ -250,15 +292,13 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 	}
 
 	// 用 JWT 设置登录态
-	if err = u.setJWTToken(user.Id, ctx); err != nil {
-		fmt.Println(err)
+	if err = u.SetLoginToken(ctx, user.Id); err != nil {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
 			Msg:  "系统错误",
 		})
 		return
 	}
-	fmt.Println(user)
 	ctx.String(http.StatusOK, "登录成功")
 	return
 }
@@ -356,7 +396,7 @@ func (u *UserHandler) Edit(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "描述格式错误")
 		return
 	}
-	uc := ctx.MustGet("user").(UserClaims)
+	uc := ctx.MustGet("user").(ijwt.UserClaims)
 	err = u.svc.UpdateNonSensitiveInfo(ctx, domain.User{
 		Id:       uc.Uid,
 		Nickname: req.Nickname,
@@ -403,7 +443,7 @@ func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
 		Birthday string
 		Desc     string
 	}
-	uc := ctx.MustGet("user").(UserClaims)
+	uc := ctx.MustGet("user").(ijwt.UserClaims)
 	user, err := u.svc.Profile(ctx, uc.Uid)
 	if err != nil {
 		ctx.JSON(http.StatusOK, Result{

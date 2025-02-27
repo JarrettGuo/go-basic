@@ -2,6 +2,7 @@ package ioc
 
 import (
 	"go-basic/webook/internal/web"
+	ijwt "go-basic/webook/internal/web/jwt"
 	"go-basic/webook/internal/web/middleware"
 	"go-basic/webook/pkg/ginx/middlewares/ratelimit"
 	ratelimitx "go-basic/webook/pkg/ratelimit"
@@ -20,14 +21,15 @@ func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler, oauth2Wecha
 	return server
 }
 
-func InitMiddlewares(redisClient redis.Cmdable) []gin.HandlerFunc {
+func InitMiddlewares(redisClient redis.Cmdable, jwtHdl ijwt.Handler) []gin.HandlerFunc {
 	return []gin.HandlerFunc{
 		corsHdl(),
-		middleware.NewLoginJWTMiddlewareBuilder().
+		middleware.NewLoginJWTMiddlewareBuilder(jwtHdl).
 			IgnorePaths("/users/login").
 			IgnorePaths("/users/signup").
 			IgnorePaths("/users/login_sms/code/send").
 			IgnorePaths("/users/login_sms").
+			IgnorePaths("/users/refresh_token").
 			IgnorePaths("/oauth2/wechat/authurl").
 			IgnorePaths("/oauth2/wechat/callback").
 			Build(),
@@ -40,7 +42,7 @@ func corsHdl() gin.HandlerFunc {
 		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Authorization", "Content-Type"},
-		ExposeHeaders:    []string{"x-jwt-token"},
+		ExposeHeaders:    []string{"x-jwt-token, x-refresh-token"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	})

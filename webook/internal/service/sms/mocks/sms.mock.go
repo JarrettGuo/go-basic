@@ -35,9 +35,9 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 }
 
 // Send mocks base method.
-func (m *MockService) Send(ctx context.Context, tpl string, args []string, numbers ...string) error {
+func (m *MockService) Send(ctx context.Context, biz string, args []string, numbers ...string) error {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{ctx, tpl, args}
+	varargs := []interface{}{ctx, biz, args}
 	for _, a := range numbers {
 		varargs = append(varargs, a)
 	}
@@ -47,8 +47,8 @@ func (m *MockService) Send(ctx context.Context, tpl string, args []string, numbe
 }
 
 // Send indicates an expected call of Send.
-func (mr *MockServiceMockRecorder) Send(ctx, tpl, args interface{}, numbers ...interface{}) *gomock.Call {
+func (mr *MockServiceMockRecorder) Send(ctx, biz, args interface{}, numbers ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{ctx, tpl, args}, numbers...)
+	varargs := append([]interface{}{ctx, biz, args}, numbers...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockService)(nil).Send), varargs...)
 }

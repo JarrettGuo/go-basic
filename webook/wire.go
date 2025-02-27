@@ -9,6 +9,7 @@ import (
 	"go-basic/webook/internal/repository/dao"
 	"go-basic/webook/internal/service"
 	"go-basic/webook/internal/web"
+	ijwt "go-basic/webook/internal/web/jwt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/wire"
@@ -31,6 +32,7 @@ func InitWebServer() *gin.Engine {
 		service.NewUserService,
 		service.NewCodeService,
 		ioc.InitSMSService,
+		ijwt.NewRedisJWTHandler,
 
 		web.NewUserHandler,
 		web.NewOAuth2WechatHandler,
