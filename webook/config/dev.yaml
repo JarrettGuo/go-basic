@@ -1,0 +1,13 @@
+db.mysql:
+  dsn: "root:root@tcp(localhost:3306)/webook"
+
+redis:
+  addr: "localhost:6379"
+
+WechatApp:
+  appid: "WECHAT_APP_ID"
+  secret: "WECHAT_APP_SECRET"
+
+OAuth2:
+  secure: false
+  stateKey: "oauth2_state"

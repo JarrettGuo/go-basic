@@ -23,12 +23,12 @@ type OAuth2WechatHandler struct {
 	cfg config.StateConfig
 }
 
-func NewOAuth2WechatHandler(svc wechat.Service, userSvc service.UserService, cfg config.StateConfig, ijwtHdl ijwt.Handler) *OAuth2WechatHandler {
+func NewOAuth2WechatHandler(svc wechat.Service, userSvc service.UserService, ijwtHdl ijwt.Handler, cfg config.StateConfig) *OAuth2WechatHandler {
 	return &OAuth2WechatHandler{
 		svc:     svc,
 		userSvc: userSvc,
-		cfg:     cfg,
 		Handler: ijwtHdl,
+		cfg:     cfg,
 	}
 }
 
