@@ -1,9 +1,13 @@
 package ioc
 
 import (
+	"context"
 	"go-basic/webook/internal/web"
 	ijwt "go-basic/webook/internal/web/jwt"
 	"go-basic/webook/internal/web/middleware"
+	"go-basic/webook/pkg/ginx/middlewares/logger"
+	loggerx "go-basic/webook/pkg/logger"
+
 	"go-basic/webook/pkg/ginx/middlewares/ratelimit"
 	ratelimitx "go-basic/webook/pkg/ratelimit"
 	"time"
@@ -21,9 +25,12 @@ func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler, oauth2Wecha
 	return server
 }
 
-func InitMiddlewares(redisClient redis.Cmdable, jwtHdl ijwt.Handler) []gin.HandlerFunc {
+func InitMiddlewares(redisClient redis.Cmdable, jwtHdl ijwt.Handler, l loggerx.Logger) []gin.HandlerFunc {
 	return []gin.HandlerFunc{
 		corsHdl(),
+		logger.NewBuilder(func(ctx context.Context, al *logger.AccessLog) {
+			l.Debug("HTTP Request", loggerx.Field{Key: "al", Value: al})
+		}).AllowReqBody().AllowRespBody().Build(),
 		middleware.NewLoginJWTMiddlewareBuilder(jwtHdl).
 			IgnorePaths("/users/login").
 			IgnorePaths("/users/signup").

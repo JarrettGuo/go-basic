@@ -5,6 +5,7 @@ import (
 	"errors"
 	"go-basic/webook/internal/domain"
 	"go-basic/webook/internal/repository"
+	"go-basic/webook/pkg/logger"
 
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
@@ -27,11 +28,13 @@ type UserService interface {
 type userService struct {
 	repo  repository.UserRepository
 	redis *redis.Client
+	l     logger.Logger
 }
 
-func NewUserService(repo repository.UserRepository) UserService {
+func NewUserService(repo repository.UserRepository, l logger.Logger) UserService {
 	return &userService{
 		repo: repo,
+		l:    l,
 	}
 }
 
@@ -78,6 +81,7 @@ func (svc *userService) FindOrCreate(ctx context.Context, phone string) (domain.
 	if err != repository.ErrUserNotFound {
 		return u, err
 	}
+	svc.l.Info("用户未注册", logger.String("phone", phone))
 	err = svc.repo.Create(ctx, domain.User{
 		Phone: phone,
 	})

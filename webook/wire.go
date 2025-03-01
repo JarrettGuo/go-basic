@@ -20,6 +20,7 @@ func InitWebServer() *gin.Engine {
 		ioc.InitDB,
 		ioc.InitRedis,
 		ioc.NewWechatHandlerConfig,
+		ioc.InitLogger,
 
 		dao.NewUserDAO,
 		cache.NewUserCache,

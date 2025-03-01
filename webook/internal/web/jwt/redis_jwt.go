@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -82,8 +83,18 @@ func (h *RedisJWTHandler) ExtractToken(ctx *gin.Context) string {
 }
 
 func (h *RedisJWTHandler) CheckSession(ctx *gin.Context, ssid string) error {
-	_, err := h.cmd.Exists(ctx, fmt.Sprintf("users:ssid:%s", ssid)).Result()
-	return err
+	val, err := h.cmd.Exists(ctx, fmt.Sprintf("users:ssid:%s", ssid)).Result()
+	switch err {
+	case redis.Nil:
+		return nil
+	case nil:
+		if val == 0 {
+			return nil
+		}
+		return errors.New("session is invalid")
+	default:
+		return err
+	}
 }
 
 func (h *RedisJWTHandler) ClearToken(ctx *gin.Context) error {
