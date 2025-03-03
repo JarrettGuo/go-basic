@@ -1,18 +1,19 @@
 package ginx
 
 import (
+	"go-basic/webook/internal/web/jwt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-func WrapReq[T any](fn func(ctx *gin.Context, req T) (Result, error)) gin.HandlerFunc {
+func WrapReq[T any](fn func(ctx *gin.Context, req T, uc jwt.UserClaims) (Result, error)) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req T
 		if err := ctx.Bind(&req); err != nil {
 			return
 		}
-		res, err := fn(ctx, req)
+		res, err := fn(ctx, req, ctx.MustGet("user").(jwt.UserClaims))
 		if err != nil {
 
 		}

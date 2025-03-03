@@ -4,10 +4,11 @@
 //go:build !wireinject
 // +build !wireinject
 
-package integration
+package startup
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/google/wire"
 	"go-basic/webook/internal/ioc"
 	"go-basic/webook/internal/repository"
 	"go-basic/webook/internal/repository/cache"
@@ -20,11 +21,11 @@ import (
 // Injectors from wire.go:
 
 func InitWebServer() *gin.Engine {
-	cmdable := ioc.InitRedis()
+	cmdable := InitRedis()
 	handler := jwt.NewRedisJWTHandler(cmdable)
-	logger := ioc.InitLogger()
+	logger := InitLogger()
 	v := ioc.InitMiddlewares(cmdable, handler, logger)
-	db := ioc.InitDB(logger)
+	db := InitDB()
 	userDAO := dao.NewUserDAO(db)
 	userCache := cache.NewUserCache(cmdable)
 	userRepository := repository.NewUserRepository(userDAO, userCache)
@@ -37,6 +38,30 @@ func InitWebServer() *gin.Engine {
 	wechatService := ioc.InitOAuth2WechatService()
 	stateConfig := ioc.NewWechatHandlerConfig()
 	oAuth2WechatHandler := web.NewOAuth2WechatHandler(wechatService, userService, handler, stateConfig)
-	engine := ioc.InitWebServer(v, userHandler, oAuth2WechatHandler)
+	articleDAO := dao.NewArticleDAO(db)
+	articleRepository := repository.NewArticleRepository(articleDAO)
+	articleService := service.NewArticleService(articleRepository)
+	articleHandler := web.NewArticleHandler(articleService, logger)
+	engine := ioc.InitWebServer(v, userHandler, oAuth2WechatHandler, articleHandler)
 	return engine
 }
+
+func InitArticleHandler() *web.ArticleHandler {
+	db := InitDB()
+	articleDAO := dao.NewArticleDAO(db)
+	articleRepository := repository.NewArticleRepository(articleDAO)
+	articleService := service.NewArticleService(articleRepository)
+	logger := InitLogger()
+	articleHandler := web.NewArticleHandler(articleService, logger)
+	return articleHandler
+}
+
+// wire.go:
+
+var thirdPartySet = wire.NewSet(
+	InitRedis,
+	InitDB,
+	InitLogger,
+)
+
+var userSvcProvider = wire.NewSet(dao.NewUserDAO, cache.NewUserCache, repository.NewUserRepository, service.NewUserService)

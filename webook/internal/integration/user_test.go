@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"go-basic/webook/internal/integration/startup"
 	"go-basic/webook/internal/ioc"
 	"go-basic/webook/internal/web"
 	"net/http"
@@ -16,7 +17,7 @@ import (
 )
 
 func TestUserHandler_e2e_SendLoginSMSCode(t *testing.T) {
-	server := InitWebServer()
+	server := startup.InitWebServer()
 	rdb := ioc.InitRedis()
 	testCases := []struct {
 		name string

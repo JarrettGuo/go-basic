@@ -15,6 +15,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var _ handler = (*UserHandler)(nil)
+
 var (
 	ErrCodeSendTooMany        = service.ErrCodeSendTooMany
 	ErrCodeVerifyTooManyTimes = service.ErrCodeVerifyTooManyTimes
