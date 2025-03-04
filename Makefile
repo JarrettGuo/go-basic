@@ -10,4 +10,9 @@ mock:
 	@mockgen -source=./webook/internal/service/sms/types.go -package=smsmocks -destination=./webook/internal/service/sms/mocks/sms.mock.go
 	@mockgen -package=redismocks -destination=./webook/internal/repository/cache/redismocks/cmdable.mock.go github.com/redis/go-redis/v9 Cmdable
 	@mockgen -source=./webook/internal/web/jwt/types.go -package=jwtmocks -destination=./webook/internal/web/jwt/mocks/jwt.mock.go
+
+	@mockgen -source=./webook/internal/service/article.go -package=svcmocks -destination=./webook/internal/service/mocks/article.mock.go
+	@mockgen -source=./webook/internal/repository/article/article.go -package=repomocks -destination=./webook/internal/repository/article/mocks/article.mock.go
+	@mockgen -source=./webook/internal/repository/article/article_author.go -package=repomocks -destination=./webook/internal/repository/article/mocks/article_author.mock.go
+	@mockgen -source=./webook/internal/repository/article/article_reader.go -package=repomocks -destination=./webook/internal/repository/article/mocks/article_reader.mock.go
 	@go mod tidy

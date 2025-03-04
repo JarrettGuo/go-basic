@@ -67,8 +67,16 @@ func (s *ArticleTestSuite) TestEdit() {
 				assert.NoError(t, err)
 				assert.True(t, art.Ctime > 0)
 				assert.True(t, art.Utime > 0)
-				assert.Equal(t, "标题", art.Title)
-				assert.Equal(t, "内容", art.Content)
+				art.Ctime = 0
+				art.Utime = 0
+				assert.Equal(t, dao.Article{
+					Id:       1,
+					Title:    "标题",
+					Content:  "内容",
+					AuthorId: 123,
+					Ctime:    0,
+					Utime:    0,
+				}, art)
 			},
 			article: Article{
 				Title:   "标题",
@@ -78,6 +86,87 @@ func (s *ArticleTestSuite) TestEdit() {
 			wantResult: Result[int64]{
 				Data: 1,
 				Msg:  "OK",
+			},
+		},
+		{
+			name: "修改帖子-保存成功",
+			before: func(t *testing.T) {
+				err := s.db.Create(dao.Article{
+					Id:       2,
+					Title:    "标题",
+					Content:  "内容",
+					AuthorId: 123,
+					// 跟时间有关的测试，不要用 time.Now()，因为时间会变化
+					Ctime: 123,
+					Utime: 123,
+				}).Error
+				assert.NoError(t, err)
+			},
+			after: func(t *testing.T) {
+				// 验证数据库
+				var art dao.Article
+				err := s.db.Where("id=?", "2").First(&art).Error
+				assert.NoError(t, err)
+				// 确保更新了 utime
+				assert.True(t, art.Utime > 123)
+				art.Utime = 0
+				assert.Equal(t, dao.Article{
+					Id:       2,
+					Title:    "新的标题",
+					Content:  "新的内容",
+					AuthorId: 123,
+					Ctime:    123,
+					Utime:    0,
+				}, art)
+			},
+			article: Article{
+				Id:      2,
+				Title:   "新的标题",
+				Content: "新的内容",
+			},
+			wantCode: http.StatusOK,
+			wantResult: Result[int64]{
+				Data: 2,
+				Msg:  "OK",
+			},
+		},
+		{
+			name: "修改帖子-别人的帖子",
+			before: func(t *testing.T) {
+				err := s.db.Create(dao.Article{
+					Id:       3,
+					Title:    "标题",
+					Content:  "内容",
+					AuthorId: 789,
+					// 跟时间有关的测试，不要用 time.Now()，因为时间会变化
+					Ctime: 123,
+					Utime: 123,
+				}).Error
+				assert.NoError(t, err)
+			},
+			after: func(t *testing.T) {
+				// 验证数据库
+				var art dao.Article
+				err := s.db.Where("id=?", "3").First(&art).Error
+				assert.NoError(t, err)
+				assert.Equal(t, dao.Article{
+					Id:       3,
+					Title:    "标题",
+					Content:  "内容",
+					AuthorId: 789,
+					Ctime:    123,
+					Utime:    123,
+				}, art)
+			},
+			article: Article{
+				Id:      3,
+				Title:   "新的标题",
+				Content: "新的内容",
+			},
+			wantCode: http.StatusOK,
+			wantResult: Result[int64]{
+				Code: 5,
+				Msg:  "系统错误",
 			},
 		},
 	}
@@ -117,6 +206,7 @@ func TestArticle(t *testing.T) {
 }
 
 type Article struct {
+	Id      int64  `json:"id"`
 	Title   string `json:"title"`
 	Content string `json:"content"`
 }
