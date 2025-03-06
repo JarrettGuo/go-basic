@@ -50,6 +50,50 @@ func (mr *MockArticleRepositoryMockRecorder) Create(ctx, art interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockArticleRepository)(nil).Create), ctx, art)
 }
 
+// SyncStatus mocks base method.
+func (m *MockArticleRepository) SyncStatus(ctx context.Context, id, authorId int64, status domain.ArticleStatus) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SyncStatus", ctx, id, authorId, status)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SyncStatus indicates an expected call of SyncStatus.
+func (mr *MockArticleRepositoryMockRecorder) SyncStatus(ctx, id, authorId, status interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncStatus", reflect.TypeOf((*MockArticleRepository)(nil).SyncStatus), ctx, id, authorId, status)
+}
+
+// SyncV1 mocks base method.
+func (m *MockArticleRepository) SyncV1(ctx context.Context, art domain.Article) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SyncV1", ctx, art)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SyncV1 indicates an expected call of SyncV1.
+func (mr *MockArticleRepositoryMockRecorder) SyncV1(ctx, art interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncV1", reflect.TypeOf((*MockArticleRepository)(nil).SyncV1), ctx, art)
+}
+
+// SyncV2 mocks base method.
+func (m *MockArticleRepository) SyncV2(ctx context.Context, art domain.Article) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SyncV2", ctx, art)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SyncV2 indicates an expected call of SyncV2.
+func (mr *MockArticleRepositoryMockRecorder) SyncV2(ctx, art interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncV2", reflect.TypeOf((*MockArticleRepository)(nil).SyncV2), ctx, art)
+}
+
 // Update mocks base method.
 func (m *MockArticleRepository) Update(ctx context.Context, art domain.Article) error {
 	m.ctrl.T.Helper()

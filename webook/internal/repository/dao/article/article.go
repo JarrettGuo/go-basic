@@ -13,7 +13,8 @@ type ArticleDAO interface {
 	Insert(ctx context.Context, art Article) (int64, error)
 	UpdateById(ctx context.Context, art Article) error
 	Sync(ctx context.Context, art Article) (int64, error)
-	Upsert(ctx context.Context, art PublishArticle) error
+	Upsert(ctx context.Context, art PublishedArticle) error
+	SyncStatus(ctx context.Context, id, authorId int64, status uint8) error
 }
 
 type GORMArticleDAO struct {
@@ -24,6 +25,26 @@ func NewGORMArticleDAO(db *gorm.DB) ArticleDAO {
 	return &GORMArticleDAO{
 		db: db,
 	}
+}
+
+func (dao *GORMArticleDAO) SyncStatus(ctx context.Context, id, authorId int64, status uint8) error {
+	now := time.Now().UnixMilli()
+	return dao.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&Article{}).Where("id=? AND author_id=?", id, authorId).Updates(map[string]any{
+			"status": status,
+			"utime":  now,
+		})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("更新失败，可能是创作者非法 id %d, author_id %d", id, authorId)
+		}
+		return tx.Model(&Article{}).Where("id=? AND author_id=?", id, authorId).Updates(map[string]any{
+			"status": status,
+			"utime":  now,
+		}).Error
+	})
 }
 
 func (dao *GORMArticleDAO) Sync(ctx context.Context, art Article) (int64, error) {
@@ -44,13 +65,13 @@ func (dao *GORMArticleDAO) Sync(ctx context.Context, art Article) (int64, error)
 			return err
 		}
 		// 操作线上库
-		err = txDAO.Upsert(ctx, PublishArticle{Article: art})
+		err = txDAO.Upsert(ctx, PublishedArticle{Article: art})
 		return err
 	})
 	return id, err
 }
 
-func (dao *GORMArticleDAO) Upsert(ctx context.Context, art PublishArticle) error {
+func (dao *GORMArticleDAO) Upsert(ctx context.Context, art PublishedArticle) error {
 	now := time.Now().UnixMilli()
 	art.Ctime = now
 	art.Utime = now
@@ -61,6 +82,7 @@ func (dao *GORMArticleDAO) Upsert(ctx context.Context, art PublishArticle) error
 			"title":   art.Title,
 			"content": art.Content,
 			"utime":   now,
+			"status":  art.Status,
 		}),
 	}).Create(&art).Error
 	return err
@@ -79,7 +101,10 @@ func (dao *GORMArticleDAO) UpdateById(ctx context.Context, art Article) error {
 	art.Utime = now
 	// 显示指定更新字段，避免更新了不该更新的字段
 	res := dao.db.WithContext(ctx).Model(&Article{}).Where("id=? AND author_id=?", art.Id, art.AuthorId).Updates(map[string]any{
-		"title": art.Title, "content": art.Content, "utime": art.Utime,
+		"title":   art.Title,
+		"content": art.Content,
+		"utime":   art.Utime,
+		"status":  art.Status,
 	})
 	// 检查是否有更新到数据
 	if res.Error != nil {
@@ -99,4 +124,5 @@ type Article struct {
 	AuthorId int64  `gorm:"index"`
 	Ctime    int64
 	Utime    int64
+	Status   uint8
 }

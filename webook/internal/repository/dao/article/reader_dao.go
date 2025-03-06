@@ -7,14 +7,16 @@ import (
 )
 
 type ReaderDAO interface {
-	Upsert(ctx context.Context, art Article) error
-	UpsertV2(ctx context.Context, art PublishArticle) error
+	// Upsert(ctx context.Context, art Article) error
+	Upsert(ctx context.Context, art PublishedArticle) error
 }
 
 func NewReaderDAO(db *gorm.DB) ReaderDAO {
-	panic("implement me")
+	return &GORMArticleDAO{
+		db: db,
+	}
 }
 
-type PublishArticle struct {
+type PublishedArticle struct {
 	Article
 }

@@ -12,5 +12,7 @@ type AuthorDAO interface {
 }
 
 func NewAuthorDAO(db *gorm.DB) AuthorDAO {
-	panic("implement me")
+	return &GORMArticleDAO{
+		db: db,
+	}
 }

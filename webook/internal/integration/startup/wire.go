@@ -5,8 +5,10 @@ package startup
 import (
 	"go-basic/webook/internal/ioc"
 	"go-basic/webook/internal/repository"
+	articleRepository "go-basic/webook/internal/repository/article"
 	"go-basic/webook/internal/repository/cache"
 	"go-basic/webook/internal/repository/dao"
+	articleDAO "go-basic/webook/internal/repository/dao/article"
 	"go-basic/webook/internal/service"
 	"go-basic/webook/internal/web"
 	ijwt "go-basic/webook/internal/web/jwt"
@@ -42,11 +44,13 @@ func InitWebServer() *gin.Engine {
 		// articlSvcProvider,
 		// cache 部分
 		cache.NewCodeCache,
-		dao.NewArticleDAO,
+		articleDAO.NewGORMArticleDAO,
+		articleDAO.NewReaderDAO,
+		articleDAO.NewAuthorDAO,
 
 		// repository 部分
 		repository.NewCodeRepository,
-		repository.NewArticleRepository,
+		articleRepository.NewArticleRepository,
 
 		// Service 部分
 		ioc.InitSMSService,
@@ -71,9 +75,11 @@ func InitArticleHandler() *web.ArticleHandler {
 	wire.Build(
 		thirdPartySet,
 		// userSvcProvider,
-		repository.NewArticleRepository,
+		articleRepository.NewArticleRepository,
 		// cache.NewArticleRedisCache,
-		dao.NewArticleDAO,
+		articleDAO.NewGORMArticleDAO,
+		articleDAO.NewReaderDAO,
+		articleDAO.NewAuthorDAO,
 		service.NewArticleService,
 		web.NewArticleHandler)
 	return &web.ArticleHandler{}

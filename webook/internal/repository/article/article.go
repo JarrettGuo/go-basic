@@ -13,6 +13,7 @@ type ArticleRepository interface {
 	Update(ctx context.Context, art domain.Article) error
 	SyncV1(ctx context.Context, art domain.Article) (int64, error)
 	SyncV2(ctx context.Context, art domain.Article) (int64, error)
+	SyncStatus(ctx context.Context, id, authorId int64, status domain.ArticleStatus) error
 }
 
 type CacheArticleRepository struct {
@@ -29,6 +30,10 @@ func NewArticleRepository(dao dao.ArticleDAO, reader dao.ReaderDAO, author dao.A
 		reader: reader,
 		author: author,
 	}
+}
+
+func (c *CacheArticleRepository) SyncStatus(ctx context.Context, id, authorId int64, status domain.ArticleStatus) error {
+	return c.dao.SyncStatus(ctx, id, authorId, status.ToUint8())
 }
 
 func (c *CacheArticleRepository) Create(ctx context.Context, art domain.Article) (int64, error) {
@@ -64,7 +69,7 @@ func (c *CacheArticleRepository) SyncV2(ctx context.Context, art domain.Article)
 		return 0, err
 	}
 	// 同步线上库，使用不同的表
-	err = reader.UpsertV2(ctx, dao.PublishArticle{
+	err = reader.Upsert(ctx, dao.PublishedArticle{
 		Article: artEntity})
 	// 执行成功，提交
 	tx.Commit()
@@ -86,7 +91,7 @@ func (c *CacheArticleRepository) SyncV1(ctx context.Context, art domain.Article)
 		return 0, err
 	}
 	// 同步线上库
-	err = c.reader.Upsert(ctx, artEntity)
+	err = c.reader.Upsert(ctx, dao.PublishedArticle{Article: artEntity})
 	return id, err
 }
 
@@ -96,6 +101,7 @@ func (c *CacheArticleRepository) domainToEntity(ctx context.Context, art domain.
 		Title:    art.Title,
 		Content:  art.Content,
 		AuthorId: art.Author.Id,
+		Status:   art.Status.ToUint8(),
 	}
 }
 
@@ -107,5 +113,6 @@ func (c *CacheArticleRepository) entityToDomain(ctx context.Context, art dao.Art
 		Author: domain.Author{
 			Id: art.AuthorId,
 		},
+		Status: domain.ArticleStatus(art.Status),
 	}
 }

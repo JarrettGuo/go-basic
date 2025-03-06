@@ -26,3 +26,12 @@ services:
   #     - ALLOW_EMPTY_PASSWORD=yes
   #   ports:
   #     - 2379:2379
+
+  mongo:
+    image: mongo:6.0
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+    ports:
+      - "27017:27017"
