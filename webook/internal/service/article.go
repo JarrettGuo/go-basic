@@ -22,9 +22,10 @@ type articleService struct {
 	l      logger.Logger
 }
 
-func NewArticleService(repo repository.ArticleRepository) ArticleService {
+func NewArticleService(repo repository.ArticleRepository, l logger.Logger) ArticleService {
 	return &articleService{
 		repo: repo,
+		l:    l,
 	}
 }
 
@@ -46,12 +47,14 @@ func (a *articleService) Save(ctx context.Context, art domain.Article) (int64, e
 		err := a.repo.Update(ctx, art)
 		return art.Id, err
 	}
-	return a.repo.Create(ctx, art)
+
+	id, err := a.repo.Create(ctx, art)
+	return id, err
 }
 
 func (a *articleService) Publish(ctx context.Context, art domain.Article) (int64, error) {
 	art.Status = domain.ArticleStatusPublished
-	return a.repo.SyncV1(ctx, art)
+	return a.repo.Sync(ctx, art)
 }
 
 func (a *articleService) PublishV1(ctx context.Context, art domain.Article) (int64, error) {

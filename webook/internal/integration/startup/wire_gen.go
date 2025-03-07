@@ -40,24 +40,26 @@ func InitWebServer() *gin.Engine {
 	wechatService := ioc.InitOAuth2WechatService()
 	stateConfig := ioc.NewWechatHandlerConfig()
 	oAuth2WechatHandler := web.NewOAuth2WechatHandler(wechatService, userService, handler, stateConfig)
-	articleDAO := article.NewGORMArticleDAO(db)
-	readerDAO := article.NewReaderDAO(db)
-	authorDAO := article.NewAuthorDAO(db)
+	database := InitMongoDB()
+	node := InitSnowflakeNode()
+	articleDAO := article.NewMongoDBDAO(database, node)
+	readerDAO := article.NewReaderDAO(database, node)
+	authorDAO := article.NewAuthorDAO(database, node)
 	articleRepository := article2.NewArticleRepository(articleDAO, readerDAO, authorDAO)
-	articleService := service.NewArticleService(articleRepository)
+	articleService := service.NewArticleService(articleRepository, logger)
 	articleHandler := web.NewArticleHandler(articleService, logger)
 	engine := ioc.InitWebServer(v, userHandler, oAuth2WechatHandler, articleHandler)
 	return engine
 }
 
-func InitArticleHandler() *web.ArticleHandler {
-	db := InitDB()
-	articleDAO := article.NewGORMArticleDAO(db)
-	readerDAO := article.NewReaderDAO(db)
-	authorDAO := article.NewAuthorDAO(db)
-	articleRepository := article2.NewArticleRepository(articleDAO, readerDAO, authorDAO)
-	articleService := service.NewArticleService(articleRepository)
+func InitArticleHandler(dao2 article.ArticleDAO) *web.ArticleHandler {
+	database := InitMongoDB()
+	node := InitSnowflakeNode()
+	readerDAO := article.NewReaderDAO(database, node)
+	authorDAO := article.NewAuthorDAO(database, node)
+	articleRepository := article2.NewArticleRepository(dao2, readerDAO, authorDAO)
 	logger := InitLogger()
+	articleService := service.NewArticleService(articleRepository, logger)
 	articleHandler := web.NewArticleHandler(articleService, logger)
 	return articleHandler
 }
@@ -68,6 +70,10 @@ var thirdPartySet = wire.NewSet(
 	InitRedis,
 	InitDB,
 	InitLogger,
+	InitMongoDB,
+	InitSnowflakeNode,
 )
 
 var userSvcProvider = wire.NewSet(dao.NewUserDAO, cache.NewUserCache, repository.NewUserRepository, service.NewUserService)
+
+var articlSvcProvider = wire.NewSet(service.NewArticleService, article.NewReaderDAO, article.NewAuthorDAO, article.NewMongoDBDAO)

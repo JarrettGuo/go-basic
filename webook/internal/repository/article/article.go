@@ -11,12 +11,13 @@ import (
 type ArticleRepository interface {
 	Create(ctx context.Context, art domain.Article) (int64, error)
 	Update(ctx context.Context, art domain.Article) error
-	SyncV1(ctx context.Context, art domain.Article) (int64, error)
-	SyncV2(ctx context.Context, art domain.Article) (int64, error)
+	Sync(ctx context.Context, art domain.Article) (int64, error)
+	// SyncV2(ctx context.Context, art domain.Article) (int64, error)
 	SyncStatus(ctx context.Context, id, authorId int64, status domain.ArticleStatus) error
 }
 
 type CacheArticleRepository struct {
+	// dao dao.ArticleDAO
 	dao dao.ArticleDAO
 
 	reader dao.ReaderDAO
@@ -45,38 +46,38 @@ func (c *CacheArticleRepository) Update(ctx context.Context, art domain.Article)
 }
 
 // SyncV2 同步文章，使用事务
-func (c *CacheArticleRepository) SyncV2(ctx context.Context, art domain.Article) (int64, error) {
-	// 开启一个事务
-	tx := c.db.WithContext(ctx).Begin()
-	if tx.Error != nil {
-		return 0, tx.Error
-	}
-	// 事务结束或失败时，回滚
-	defer tx.Rollback()
-	author := dao.NewAuthorDAO(tx)
-	reader := dao.NewReaderDAO(tx)
-	var (
-		id  = art.Id
-		err error
-	)
-	artEntity := c.domainToEntity(ctx, art)
-	if id > 0 {
-		err = author.UpdateById(ctx, artEntity)
-	} else {
-		id, err = author.Insert(ctx, artEntity)
-	}
-	if err != nil {
-		return 0, err
-	}
-	// 同步线上库，使用不同的表
-	err = reader.Upsert(ctx, dao.PublishedArticle{
-		Article: artEntity})
-	// 执行成功，提交
-	tx.Commit()
-	return id, err
-}
+// func (c *CacheArticleRepository) SyncV2(ctx context.Context, art domain.Article) (int64, error) {
+// 	// 开启一个事务
+// 	tx := c.db.WithContext(ctx).Begin()
+// 	if tx.Error != nil {
+// 		return 0, tx.Error
+// 	}
+// 	// 事务结束或失败时，回滚
+// 	defer tx.Rollback()
+// 	author := dao.NewAuthorDAO(tx)
+// 	reader := dao.NewReaderDAO(tx)
+// 	var (
+// 		id  = art.Id
+// 		err error
+// 	)
+// 	artEntity := c.domainToEntity(ctx, art)
+// 	if id > 0 {
+// 		err = author.UpdateById(ctx, artEntity)
+// 	} else {
+// 		id, err = author.Insert(ctx, artEntity)
+// 	}
+// 	if err != nil {
+// 		return 0, err
+// 	}
+// 	// 同步线上库，使用不同的表
+// 	err = reader.Upsert(ctx, dao.PublishedArticle{
+// 		Article: artEntity})
+// 	// 执行成功，提交
+// 	tx.Commit()
+// 	return id, err
+// }
 
-func (c *CacheArticleRepository) SyncV1(ctx context.Context, art domain.Article) (int64, error) {
+func (c *CacheArticleRepository) Sync(ctx context.Context, art domain.Article) (int64, error) {
 	var (
 		id  = art.Id
 		err error
@@ -91,7 +92,7 @@ func (c *CacheArticleRepository) SyncV1(ctx context.Context, art domain.Article)
 		return 0, err
 	}
 	// 同步线上库
-	err = c.reader.Upsert(ctx, dao.PublishedArticle{Article: artEntity})
+	err = c.reader.Upsert(ctx, dao.PublishedArticle(artEntity))
 	return id, err
 }
 

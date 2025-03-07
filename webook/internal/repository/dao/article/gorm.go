@@ -9,14 +9,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type ArticleDAO interface {
-	Insert(ctx context.Context, art Article) (int64, error)
-	UpdateById(ctx context.Context, art Article) error
-	Sync(ctx context.Context, art Article) (int64, error)
-	Upsert(ctx context.Context, art PublishedArticle) error
-	SyncStatus(ctx context.Context, id, authorId int64, status uint8) error
-}
-
 type GORMArticleDAO struct {
 	db *gorm.DB
 }
@@ -48,27 +40,41 @@ func (dao *GORMArticleDAO) SyncStatus(ctx context.Context, id, authorId int64, s
 }
 
 func (dao *GORMArticleDAO) Sync(ctx context.Context, art Article) (int64, error) {
+	tx := dao.db.WithContext(ctx).Begin()
+	now := time.Now().UnixMilli()
+	defer tx.Rollback()
+	txDAO := NewGORMArticleDAO(tx)
 	var (
-		id = art.Id
+		id  = art.Id
+		err error
 	)
-	// 先操作制作库，后操作线上库
-	// 事务操作，这里采用闭包的方式，begin, commit, rollback 都在这个闭包里，不需要我们手动操作
-	err := dao.db.Transaction(func(tx *gorm.DB) error {
-		var err error
-		txDAO := NewGORMArticleDAO(tx)
-		if id > 0 {
-			err = txDAO.UpdateById(ctx, art)
-		} else {
-			id, err = txDAO.Insert(ctx, art)
-		}
-		if err != nil {
-			return err
-		}
-		// 操作线上库
-		err = txDAO.Upsert(ctx, PublishedArticle{Article: art})
-		return err
-	})
-	return id, err
+	if id == 0 {
+		id, err = txDAO.Insert(ctx, art)
+	} else {
+		err = txDAO.UpdateById(ctx, art)
+	}
+	if err != nil {
+		return 0, err
+	}
+	art.Id = id
+	publishArt := PublishedArticle(art)
+	publishArt.Utime = now
+	publishArt.Ctime = now
+	err = tx.Clauses(clause.OnConflict{
+		// ID 冲突的时候。实际上，在 MYSQL 里面你写不写都可以
+		Columns: []clause.Column{{Name: "id"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"title":   art.Title,
+			"content": art.Content,
+			"status":  art.Status,
+			"utime":   now,
+		}),
+	}).Create(&publishArt).Error
+	if err != nil {
+		return 0, err
+	}
+	tx.Commit()
+	return id, tx.Error
 }
 
 func (dao *GORMArticleDAO) Upsert(ctx context.Context, art PublishedArticle) error {
@@ -116,13 +122,18 @@ func (dao *GORMArticleDAO) UpdateById(ctx context.Context, art Article) error {
 	return nil
 }
 
-// 这个是制作库的数据结构
-type Article struct {
-	Id       int64  `gorm:"primaryKey,autoIncrement"`
-	Title    string `gorm:"type:varchar(1024)"`
-	Content  string `gorm:"type:BLOB"`
-	AuthorId int64  `gorm:"index"`
-	Ctime    int64
-	Utime    int64
-	Status   uint8
+func (dao *GORMArticleDAO) GetByAuthor(ctx context.Context, author int64, offset, limit int) ([]Article, error) {
+	return []Article{}, nil
+}
+
+func (dao *GORMArticleDAO) GetById(ctx context.Context, id int64) (Article, error) {
+	return Article{}, nil
+}
+
+func (dao *GORMArticleDAO) GetPubById(ctx context.Context, id int64) (PublishedArticle, error) {
+	return PublishedArticle{}, nil
+}
+
+func (dao *GORMArticleDAO) ListPub(ctx context.Context, start time.Time, offset int, limit int) ([]Article, error) {
+	return []Article{}, nil
 }

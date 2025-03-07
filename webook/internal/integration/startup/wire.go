@@ -21,6 +21,8 @@ var thirdPartySet = wire.NewSet( // 第三方依赖
 	InitRedis,
 	InitDB,
 	InitLogger,
+	InitMongoDB,
+	InitSnowflakeNode,
 )
 
 var userSvcProvider = wire.NewSet(
@@ -30,23 +32,23 @@ var userSvcProvider = wire.NewSet(
 	service.NewUserService,
 )
 
-// var articlSvcProvider = wire.NewSet(
-// 	repository.NewCachedArticleRepository,
-// 	cache.NewArticleRedisCache,
-// 	dao.NewArticleGORMDAO,
-// 	service.NewArticleService
-// )
+var articlSvcProvider = wire.NewSet(
+	// repository.NewCachedArticleRepository,
+	// cache.NewArticleRedisCache,
+	// dao.NewArticleGORMDAO,
+	service.NewArticleService,
+	articleDAO.NewReaderDAO,
+	articleDAO.NewAuthorDAO,
+	articleDAO.NewMongoDBDAO,
+)
 
 func InitWebServer() *gin.Engine {
 	wire.Build(
 		thirdPartySet,
 		userSvcProvider,
-		// articlSvcProvider,
+		articlSvcProvider,
 		// cache 部分
 		cache.NewCodeCache,
-		articleDAO.NewGORMArticleDAO,
-		articleDAO.NewReaderDAO,
-		articleDAO.NewAuthorDAO,
 
 		// repository 部分
 		repository.NewCodeRepository,
@@ -55,7 +57,6 @@ func InitWebServer() *gin.Engine {
 		// Service 部分
 		ioc.InitSMSService,
 		service.NewCodeService,
-		service.NewArticleService,
 		// InitWechatService,
 
 		// handler 部分
@@ -71,16 +72,14 @@ func InitWebServer() *gin.Engine {
 	return gin.Default()
 }
 
-func InitArticleHandler() *web.ArticleHandler {
+func InitArticleHandler(dao articleDAO.ArticleDAO) *web.ArticleHandler {
 	wire.Build(
 		thirdPartySet,
-		// userSvcProvider,
-		articleRepository.NewArticleRepository,
-		// cache.NewArticleRedisCache,
-		articleDAO.NewGORMArticleDAO,
 		articleDAO.NewReaderDAO,
 		articleDAO.NewAuthorDAO,
+		articleRepository.NewArticleRepository,
 		service.NewArticleService,
-		web.NewArticleHandler)
-	return &web.ArticleHandler{}
+		web.NewArticleHandler,
+	)
+	return new(web.ArticleHandler)
 }
