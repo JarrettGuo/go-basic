@@ -4,9 +4,13 @@ import (
 	"go-basic/webook/internal/domain"
 	"go-basic/webook/internal/service"
 	ijwt "go-basic/webook/internal/web/jwt"
+	"go-basic/webook/pkg/ginx"
 	"go-basic/webook/pkg/logger"
 	"net/http"
+	"strconv"
+	"time"
 
+	"github.com/ecodeclub/ekit/slice"
 	"github.com/gin-gonic/gin"
 )
 
@@ -29,6 +33,100 @@ func (h *ArticleHandler) RegisterRoutes(server *gin.Engine) {
 	g.POST("/edit", h.Edit)
 	g.POST("/publish", h.Publish)
 	g.POST("/withdraw", h.Withdraw)
+	// 创作者的查询接口
+	g.POST("/list", ginx.WrapBodyAndToken[ListReq, ijwt.UserClaims](h.List))
+	g.GET("/detail/:id", ginx.WrapToken[ijwt.UserClaims](h.Detail))
+
+	pub := g.Group("/pub")
+	pub.GET("/:id", ginx.WrapToken[ijwt.UserClaims](h.PubDetail))
+}
+
+func (h *ArticleHandler) PubDetail(ctx *gin.Context, uc ijwt.UserClaims) (ginx.Result, error) {
+	idstr := ctx.Param("id")
+	id, err := strconv.ParseInt(idstr, 10, 64)
+	if err != nil {
+		return ginx.Result{
+			Code: 5,
+			Msg:  "系统错误",
+		}, err
+	}
+	art, err := h.svc.GetPublishedById(ctx, id)
+	if err != nil {
+		return ginx.Result{
+			Code: 5,
+			Msg:  "获取文章失败",
+		}, err
+	}
+	return ginx.Result{
+		Data: ArticleVO{
+			Id:      art.Id,
+			Title:   art.Title,
+			Status:  art.Status.ToUint8(),
+			Author:  art.Author.Name,
+			Content: art.Content,
+			Ctime:   art.Ctime.Format(time.DateTime),
+			Utime:   art.Utime.Format(time.DateTime),
+		},
+	}, nil
+}
+
+func (h *ArticleHandler) Detail(ctx *gin.Context, uc ijwt.UserClaims) (ginx.Result, error) {
+	idstr := ctx.Param("id")
+	id, err := strconv.ParseInt(idstr, 10, 64)
+	if err != nil {
+		return ginx.Result{
+			Code: 5,
+			Msg:  "系统错误",
+		}, err
+	}
+	art, err := h.svc.GetById(ctx, id)
+	if err != nil {
+		return ginx.Result{
+			Code: 5,
+			Msg:  "系统错误",
+		}, err
+	}
+	if art.Author.Id != uc.Uid {
+		h.l.Error("非法访问文章，创作者ID不匹配", logger.Int64("uid", uc.Uid), logger.Int64("author_id", art.Author.Id))
+		return ginx.Result{
+			Code: 5,
+			Msg:  "输入错误",
+		}, nil
+	}
+	return ginx.Result{
+		Data: ArticleVO{
+			Id:      art.Id,
+			Title:   art.Title,
+			Status:  art.Status.ToUint8(),
+			Content: art.Content,
+			Ctime:   art.Ctime.Format(time.DateTime),
+			Utime:   art.Utime.Format(time.DateTime),
+		},
+	}, nil
+}
+
+func (h *ArticleHandler) List(ctx *gin.Context, req ListReq, uc ijwt.UserClaims) (ginx.Result, error) {
+	res, err := h.svc.List(ctx, uc.Uid, req.Offset, req.Limit)
+	if err != nil {
+		return ginx.Result{
+			Code: 5,
+			Msg:  "系统错误",
+		}, err
+	}
+	// 列表页不现实全文，只显示摘要
+	return ginx.Result{
+		Data: slice.Map[domain.Article, ArticleVO](res,
+			func(idx int, src domain.Article) ArticleVO {
+				return ArticleVO{
+					Id:       src.Id,
+					Title:    src.Title,
+					Abstract: src.Abstract(),
+					Status:   src.Status.ToUint8(),
+					Ctime:    src.Ctime.Format(time.DateTime),
+					Utime:    src.Utime.Format(time.DateTime),
+				}
+			}),
+	}, nil
 }
 
 func (h *ArticleHandler) Withdraw(ctx *gin.Context) {
@@ -130,21 +228,4 @@ func (h *ArticleHandler) Publish(ctx *gin.Context) {
 		Msg:  "OK",
 		Data: id,
 	})
-}
-
-type ArticleReq struct {
-	Id      int64  `json:"id"`
-	Title   string `json:"title"`
-	Content string `json:"content"`
-}
-
-func (req ArticleReq) toDomain(uid int64) domain.Article {
-	return domain.Article{
-		Id:      req.Id,
-		Title:   req.Title,
-		Content: req.Content,
-		Author: domain.Author{
-			Id: uid,
-		},
-	}
 }

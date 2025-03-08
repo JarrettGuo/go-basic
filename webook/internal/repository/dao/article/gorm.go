@@ -123,7 +123,9 @@ func (dao *GORMArticleDAO) UpdateById(ctx context.Context, art Article) error {
 }
 
 func (dao *GORMArticleDAO) GetByAuthor(ctx context.Context, author int64, offset, limit int) ([]Article, error) {
-	return []Article{}, nil
+	var arts []Article
+	err := dao.db.WithContext(ctx).Model(&Article{}).Where("author_id=?", author).Offset(offset).Limit(limit).Order("utime DESC").Find(&arts).Error
+	return arts, err
 }
 
 func (dao *GORMArticleDAO) GetById(ctx context.Context, id int64) (Article, error) {
