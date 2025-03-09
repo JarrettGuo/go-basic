@@ -35,11 +35,11 @@ var userSvcProvider = wire.NewSet(
 var articlSvcProvider = wire.NewSet(
 	// repository.NewCachedArticleRepository,
 	// cache.NewArticleRedisCache,
-	// dao.NewArticleGORMDAO,
+	articleDAO.NewGORMArticleDAO,
 	service.NewArticleService,
 	articleDAO.NewReaderDAO,
 	articleDAO.NewAuthorDAO,
-	articleDAO.NewMongoDBDAO,
+	// articleDAO.NewMongoDBDAO,
 )
 
 func InitWebServer() *gin.Engine {
@@ -49,6 +49,7 @@ func InitWebServer() *gin.Engine {
 		articlSvcProvider,
 		// cache 部分
 		cache.NewCodeCache,
+		cache.NewRedisArticleCache,
 
 		// repository 部分
 		repository.NewCodeRepository,
@@ -72,13 +73,12 @@ func InitWebServer() *gin.Engine {
 	return gin.Default()
 }
 
-func InitArticleHandler(dao articleDAO.ArticleDAO) *web.ArticleHandler {
+func InitArticleHandler() *web.ArticleHandler {
 	wire.Build(
 		thirdPartySet,
-		articleDAO.NewReaderDAO,
-		articleDAO.NewAuthorDAO,
+		articlSvcProvider,
+		cache.NewRedisArticleCache,
 		articleRepository.NewArticleRepository,
-		service.NewArticleService,
 		web.NewArticleHandler,
 	)
 	return new(web.ArticleHandler)

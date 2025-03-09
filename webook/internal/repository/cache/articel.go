@@ -24,6 +24,12 @@ type RedisArticleCache struct {
 	client redis.Cmdable
 }
 
+func NewRedisArticleCache(client redis.Cmdable) ArticleCache {
+	return &RedisArticleCache{
+		client: client,
+	}
+}
+
 func (r *RedisArticleCache) GetPub(ctx context.Context, id int64) (domain.Article, error) {
 	// 可以直接使用 Bytes 方法来获得 []byte
 	data, err := r.client.Get(ctx, r.readerArtKey(id)).Bytes()
@@ -48,10 +54,6 @@ func (r *RedisArticleCache) SetPub(ctx context.Context, art domain.Article) erro
 
 func (r *RedisArticleCache) DelPub(ctx context.Context, id int64) error {
 	return r.client.Del(ctx, r.readerArtKey(id)).Err()
-}
-
-func NewRediaArticleCache() ArticleCache {
-	return &RedisArticleCache{}
 }
 
 func (r *RedisArticleCache) Set(ctx context.Context, art domain.Article) error {

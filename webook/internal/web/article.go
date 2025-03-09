@@ -12,19 +12,24 @@ import (
 
 	"github.com/ecodeclub/ekit/slice"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/sync/errgroup"
 )
 
 var _ handler = (*ArticleHandler)(nil)
 
 type ArticleHandler struct {
-	svc service.ArticleService
-	l   logger.Logger
+	svc     service.ArticleService
+	l       logger.Logger
+	intrSvc service.InteractiveService
+	biz     string
 }
 
-func NewArticleHandler(svc service.ArticleService, l logger.Logger) *ArticleHandler {
+func NewArticleHandler(svc service.ArticleService, l logger.Logger, intrSvc service.InteractiveService) *ArticleHandler {
 	return &ArticleHandler{
-		svc: svc,
-		l:   l,
+		svc:     svc,
+		l:       l,
+		intrSvc: intrSvc,
+		biz:     "article",
 	}
 }
 
@@ -39,6 +44,40 @@ func (h *ArticleHandler) RegisterRoutes(server *gin.Engine) {
 
 	pub := g.Group("/pub")
 	pub.GET("/:id", ginx.WrapToken[ijwt.UserClaims](h.PubDetail))
+	pub.POST("/like", ginx.WrapBodyAndToken[LikeReq, ijwt.UserClaims](h.Like))
+	pub.POST("/collect", ginx.WrapBodyAndToken[CollectReq, ijwt.UserClaims](h.Collect))
+}
+
+func (h *ArticleHandler) Collect(ctx *gin.Context, req CollectReq, uc ijwt.UserClaims) (ginx.Result, error) {
+	err := h.intrSvc.Collect(ctx, h.biz, req.Id, req.Cid, uc.Uid)
+	if err != nil {
+		return ginx.Result{
+			Code: 5,
+			Msg:  "系统错误",
+		}, err
+	}
+	return ginx.Result{
+		Msg: "OK",
+	}, nil
+}
+
+// 点赞和取消点赞都是一个接口，通过参数区分
+func (h *ArticleHandler) Like(ctx *gin.Context, req LikeReq, uc ijwt.UserClaims) (ginx.Result, error) {
+	var err error
+	if req.Like {
+		err = h.intrSvc.Like(ctx, h.biz, req.Id, uc.Uid)
+	} else {
+		err = h.intrSvc.CancelLike(ctx, h.biz, req.Id, uc.Uid)
+	}
+	if err != nil {
+		return ginx.Result{
+			Code: 5,
+			Msg:  "系统错误",
+		}, err
+	}
+	return ginx.Result{
+		Msg: "OK",
+	}, nil
 }
 
 func (h *ArticleHandler) PubDetail(ctx *gin.Context, uc ijwt.UserClaims) (ginx.Result, error) {
@@ -46,26 +85,57 @@ func (h *ArticleHandler) PubDetail(ctx *gin.Context, uc ijwt.UserClaims) (ginx.R
 	id, err := strconv.ParseInt(idstr, 10, 64)
 	if err != nil {
 		return ginx.Result{
+			Code: 4,
+			Msg:  "前端输入的ID有误",
+		}, err
+	}
+	// 并发获取文章和交互信息，使用 errgroup
+	// 获取文章基本信息
+	var eg errgroup.Group
+	var art domain.Article
+	eg.Go(func() error {
+		art, err = h.svc.GetPublishedById(ctx, id)
+		return err
+	})
+	// 获取交互信息
+	var intr domain.Interactive
+	eg.Go(func() error {
+		// 获得文章的计数信息
+		intr, err = h.intrSvc.Get(ctx, h.biz, art.Id, uc.Uid)
+		// 可以容忍交互信息获取失败
+		return err
+	})
+	// 等待两个任务完成
+	err = eg.Wait()
+	if err != nil {
+		return ginx.Result{
 			Code: 5,
 			Msg:  "系统错误",
 		}, err
 	}
-	art, err := h.svc.GetPublishedById(ctx, id)
-	if err != nil {
-		return ginx.Result{
-			Code: 5,
-			Msg:  "获取文章失败",
-		}, err
-	}
+
+	// 增加阅读数
+	go func() {
+		er := h.intrSvc.IncrReadCnt(ctx, h.biz, art.Id)
+		if er != nil {
+			h.l.Error("增加阅读数失败", logger.Error(er), logger.Int64("id", art.Id))
+		}
+	}()
+
 	return ginx.Result{
 		Data: ArticleVO{
-			Id:      art.Id,
-			Title:   art.Title,
-			Status:  art.Status.ToUint8(),
-			Author:  art.Author.Name,
-			Content: art.Content,
-			Ctime:   art.Ctime.Format(time.DateTime),
-			Utime:   art.Utime.Format(time.DateTime),
+			Id:         art.Id,
+			Title:      art.Title,
+			Status:     art.Status.ToUint8(),
+			Author:     art.Author.Name,
+			Content:    art.Content,
+			Ctime:      art.Ctime.Format(time.DateTime),
+			Utime:      art.Utime.Format(time.DateTime),
+			ReadCnt:    intr.ReadCnt,
+			LikeCnt:    intr.LikeCnt,
+			CollectCnt: intr.CollectCnt,
+			Liked:      intr.Liked,
+			Collected:  intr.Collected,
 		},
 	}, nil
 }

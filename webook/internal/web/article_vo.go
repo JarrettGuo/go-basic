@@ -10,8 +10,15 @@ type ArticleVO struct {
 	Content  string
 	Author   string
 	Status   uint8
-	Ctime    string
-	Utime    string
+	// 准确的计数
+	ReadCnt    int64
+	LikeCnt    int64
+	CollectCnt int64
+	// 个人有没有点赞和收藏
+	Liked     bool
+	Collected bool
+	Ctime     string
+	Utime     string
 }
 
 type ListReq struct {
@@ -27,6 +34,18 @@ type ArticleReq struct {
 	Id      int64  `json:"id"`
 	Title   string `json:"title"`
 	Content string `json:"content"`
+}
+
+// 点赞和取消点赞一个请求
+type LikeReq struct {
+	Id   int64 `json:"id"`
+	Like bool  `json:"like"`
+}
+
+// cid 是收藏夹的ID
+type CollectReq struct {
+	Id  int64 `json:"id"`
+	Cid int64 `json:"cid"`
 }
 
 func (req ArticleReq) toDomain(uid int64) domain.Article {

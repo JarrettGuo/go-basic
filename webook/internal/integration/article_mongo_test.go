@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"go-basic/webook/internal/domain"
 	"go-basic/webook/internal/integration/startup"
 	"go-basic/webook/internal/repository/dao/article"
@@ -46,7 +47,8 @@ func (s *ArticleMongoHandlerTestSuite) SetupSuite() {
 	s.col = s.mdb.Collection("articles")
 	s.liveCol = s.mdb.Collection("published_articles")
 	dao := article.NewMongoDBDAO(s.mdb, node)
-	hdl := startup.InitArticleHandler(dao)
+	fmt.Println(dao)
+	hdl := startup.InitArticleHandler()
 	hdl.RegisterRoutes(s.server)
 }
 
@@ -518,14 +520,14 @@ func TestMongoArticle(t *testing.T) {
 	suite.Run(t, new(ArticleMongoHandlerTestSuite))
 }
 
-type Article struct {
-	Id      int64  `json:"id"`
-	Title   string `json:"title"`
-	Content string `json:"content"`
-}
+// type Article struct {
+// 	Id      int64  `json:"id"`
+// 	Title   string `json:"title"`
+// 	Content string `json:"content"`
+// }
 
-type Result[T any] struct {
-	Code int    `json:"code"`
-	Msg  string `json:"msg"`
-	Data T      `json:"data"`
-}
+// type Result[T any] struct {
+// 	Code int    `json:"code"`
+// 	Msg  string `json:"msg"`
+// 	Data T      `json:"data"`
+// }

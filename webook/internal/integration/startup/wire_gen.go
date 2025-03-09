@@ -36,29 +36,30 @@ func InitWebServer() *gin.Engine {
 	codeRepository := repository.NewCodeRepository(codeCache)
 	smsService := ioc.InitSMSService(cmdable)
 	codeService := service.NewCodeService(codeRepository, smsService)
-	userHandler := web.NewUserHandler(userService, codeService, handler)
+	userHandler := web.NewUserHandler(userService, codeService, handler, logger)
 	wechatService := ioc.InitOAuth2WechatService()
 	stateConfig := ioc.NewWechatHandlerConfig()
 	oAuth2WechatHandler := web.NewOAuth2WechatHandler(wechatService, userService, handler, stateConfig)
-	database := InitMongoDB()
-	node := InitSnowflakeNode()
-	articleDAO := article.NewMongoDBDAO(database, node)
-	readerDAO := article.NewReaderDAO(database, node)
-	authorDAO := article.NewAuthorDAO(database, node)
-	articleRepository := article2.NewArticleRepository(articleDAO, readerDAO, authorDAO)
+	articleDAO := article.NewGORMArticleDAO(db)
+	readerDAO := article.NewReaderDAO(db)
+	authorDAO := article.NewAuthorDAO(db)
+	articleCache := cache.NewRedisArticleCache(cmdable)
+	articleRepository := article2.NewArticleRepository(articleDAO, readerDAO, authorDAO, articleCache, logger)
 	articleService := service.NewArticleService(articleRepository, logger)
 	articleHandler := web.NewArticleHandler(articleService, logger)
 	engine := ioc.InitWebServer(v, userHandler, oAuth2WechatHandler, articleHandler)
 	return engine
 }
 
-func InitArticleHandler(dao2 article.ArticleDAO) *web.ArticleHandler {
-	database := InitMongoDB()
-	node := InitSnowflakeNode()
-	readerDAO := article.NewReaderDAO(database, node)
-	authorDAO := article.NewAuthorDAO(database, node)
-	articleRepository := article2.NewArticleRepository(dao2, readerDAO, authorDAO)
+func InitArticleHandler() *web.ArticleHandler {
+	db := InitDB()
+	articleDAO := article.NewGORMArticleDAO(db)
+	readerDAO := article.NewReaderDAO(db)
+	authorDAO := article.NewAuthorDAO(db)
+	cmdable := InitRedis()
+	articleCache := cache.NewRedisArticleCache(cmdable)
 	logger := InitLogger()
+	articleRepository := article2.NewArticleRepository(articleDAO, readerDAO, authorDAO, articleCache, logger)
 	articleService := service.NewArticleService(articleRepository, logger)
 	articleHandler := web.NewArticleHandler(articleService, logger)
 	return articleHandler
@@ -76,4 +77,4 @@ var thirdPartySet = wire.NewSet(
 
 var userSvcProvider = wire.NewSet(dao.NewUserDAO, cache.NewUserCache, repository.NewUserRepository, service.NewUserService)
 
-var articlSvcProvider = wire.NewSet(service.NewArticleService, article.NewReaderDAO, article.NewAuthorDAO, article.NewMongoDBDAO)
+var articlSvcProvider = wire.NewSet(article.NewGORMArticleDAO, service.NewArticleService, article.NewReaderDAO, article.NewAuthorDAO)
