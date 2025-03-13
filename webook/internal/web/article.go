@@ -94,7 +94,7 @@ func (h *ArticleHandler) PubDetail(ctx *gin.Context, uc ijwt.UserClaims) (ginx.R
 	var eg errgroup.Group
 	var art domain.Article
 	eg.Go(func() error {
-		art, err = h.svc.GetPublishedById(ctx, id)
+		art, err = h.svc.GetPublishedById(ctx, id, uc.Uid)
 		return err
 	})
 	// 获取交互信息

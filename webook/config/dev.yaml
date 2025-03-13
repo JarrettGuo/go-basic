@@ -11,3 +11,6 @@ WechatApp:
 OAuth2:
   secure: false
   stateKey: "oauth2_state"
+
+kafka:
+  addr: "localhost:9094"

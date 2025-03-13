@@ -1,15 +1,26 @@
 package main
 
 import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 func main() {
-	initLogger()
 	initViper()
-	server := InitWebServer()
-
+	app := InitWebServer()
+	for _, c := range app.consumers {
+		err := c.Start()
+		if err != nil {
+			panic(err)
+		}
+	}
+	server := app.server
+	server.GET("/hello", func(ctx *gin.Context) {
+		ctx.String(http.StatusOK, "hello，启动成功了！")
+	})
+	// 启动服务器
 	server.Run(":8080")
 }
 
@@ -25,12 +36,4 @@ func initViper() {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func initLogger() {
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		panic(err)
-	}
-	zap.ReplaceGlobals(logger)
 }

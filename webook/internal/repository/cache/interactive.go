@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"go-basic/webook/internal/domain"
 	"strconv"

@@ -10,12 +10,14 @@ import (
 
 type InteractiveRepository interface {
 	IncrReadCnt(ctx context.Context, biz string, bizId int64) error
+	BatchIncrReadCnt(ctx context.Context, biz []string, bizIds []int64) error
 	IncrLike(ctx context.Context, biz string, id int64, uid int64) error
 	DecrLike(ctx context.Context, biz string, id int64, uid int64) error
 	AddCollectionItem(ctx context.Context, biz string, id int64, cid int64, uid int64) error
 	Get(ctx context.Context, biz string, id int64) (domain.Interactive, error)
 	Liked(ctx context.Context, biz string, id int64, uid int64) (bool, error)
 	Collected(ctx context.Context, biz string, id int64, uid int64) (bool, error)
+	AddRecord(ctx context.Context, uid int64, aid int64) error
 }
 
 type CachedInteractiveRepository struct {
@@ -30,6 +32,20 @@ func NewCachedInteractiveRepository(dao dao.InteractiveDAO, cache cache.Interact
 		cache: cache,
 		l:     l,
 	}
+}
+
+func (c *CachedInteractiveRepository) AddRecord(ctx context.Context, uid int64, aid int64) error {
+	return c.dao.AddRecord(ctx, uid, aid)
+}
+
+func (c *CachedInteractiveRepository) BatchIncrReadCnt(ctx context.Context, biz []string, bizIds []int64) error {
+	err := c.dao.BatchIncrReadCnt(ctx, biz, bizIds)
+	if err != nil {
+		return err
+	}
+	// 批量修改 redis，需要修改 lua 脚本
+	// c.cache.IncrReadCntIfPresent(ctx, biz, bizIds)
+	return nil
 }
 
 func (c *CachedInteractiveRepository) IncrReadCnt(ctx context.Context, biz string, bizId int64) error {

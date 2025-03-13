@@ -16,11 +16,11 @@ type InteractiveDAO interface {
 	InsertLikeInfo(ctx context.Context, biz string, id int64, uid int64) error
 	DeleteLikeInfo(ctx context.Context, biz string, id int64, uid int64) error
 	InsertCollectionBiz(ctx context.Context, cb UserCollectionBiz) error
-	GetLikeInfo(ctx context.Context,
-		biz string, id int64, uid int64) (UserLikeBiz, error)
-	GetCollectInfo(ctx context.Context,
-		biz string, id int64, uid int64) (UserCollectionBiz, error)
+	GetLikeInfo(ctx context.Context, biz string, id int64, uid int64) (UserLikeBiz, error)
+	GetCollectInfo(ctx context.Context, biz string, id int64, uid int64) (UserCollectionBiz, error)
 	Get(ctx context.Context, biz string, id int64) (Interactive, error)
+	BatchIncrReadCnt(ctx context.Context, biz []string, bizIds []int64) error
+	AddRecord(ctx context.Context, uid int64, aid int64) error
 }
 
 type GORMInteractiveDAO struct {
@@ -31,6 +31,35 @@ func NewGORMInteractiveDAO(db *gorm.DB) InteractiveDAO {
 	return &GORMInteractiveDAO{
 		db: db,
 	}
+}
+
+func (dao *GORMInteractiveDAO) AddRecord(ctx context.Context, uid int64, aid int64) error {
+	now := time.Now().UnixMilli()
+	// 这里是一个upsert操作，如果没有记录则插入，有记录则更新
+	return dao.db.Clauses(clause.OnConflict{
+		DoUpdates: clause.Assignments(map[string]any{
+			"utime": now,
+		}),
+	}).Create(&UserRecordBiz{
+		Uid:   uid,
+		Biz:   "article",
+		BizId: aid,
+		Ctime: now,
+		Utime: now,
+	}).Error
+}
+
+func (dao *GORMInteractiveDAO) BatchIncrReadCnt(ctx context.Context, biz []string, bizIds []int64) error {
+	return dao.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txDAO := NewGORMInteractiveDAO(tx)
+		for i := range biz {
+			err := txDAO.IncrReadCnt(ctx, biz[i], bizIds[i])
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (dao *GORMInteractiveDAO) Get(ctx context.Context, biz string, id int64) (Interactive, error) {
@@ -156,7 +185,7 @@ type Interactive struct {
 	Id int64 `gorm:"primaryKey,autoIncrement"`
 	// 同一个资源只有一行，所以在biz和bizId上创建联合唯一索引
 	BizId      int64  `gorm:"uniqueIndex:biz_id_type"`
-	Biz        string `gorm:"uniqueIndex:biz_id_type,type:varchar(128)"`
+	Biz        string `gorm:"type:varchar(128);index:biz_id_type,unique"`
 	ReadCnt    int64
 	LikeCnt    int64
 	CollectCnt int64
@@ -166,9 +195,9 @@ type Interactive struct {
 
 type UserLikeBiz struct {
 	Id    int64  `gorm:"primaryKey,autoIncrement"`
-	Biz   string `gorm:"uniqueIndex:uid_biz_id_type,type:varchar(128)"`
-	BizId int64  `gorm:"uniqueIndex:uid_biz_id_type"`
-	Uid   int64  `gorm:"uniqueIndex:uid_biz_id_type"`
+	Biz   string `gorm:"type:varchar(128);index:uid_biz_id_type,unique"`
+	BizId int64  `gorm:"index:uid_biz_id_type,unique"`
+	Uid   int64  `gorm:"index:uid_biz_id_type,unique"`
 	Ctime int64
 	Utime int64
 	// 软删除，是存储状态，业务层面没有感知
@@ -176,14 +205,22 @@ type UserLikeBiz struct {
 }
 
 type UserCollectionBiz struct {
-	Id int64 `gorm:"primaryKey,autoIncrement"`
-	// 这边还是保留了了唯一索引
-	Uid   int64  `gorm:"uniqueIndex:uid_biz_type_id"`
-	BizId int64  `gorm:"uniqueIndex:uid_biz_type_id"`
-	Biz   string `gorm:"type:varchar(128);uniqueIndex:uid_biz_type_id"`
+	Id    int64  `gorm:"primaryKey,autoIncrement"`
+	Uid   int64  `gorm:"index:uid_biz_type_id,unique"`
+	BizId int64  `gorm:"index:uid_biz_type_id,unique"`
+	Biz   string `gorm:"type:varchar(128);index:uid_biz_type_id,unique"`
 	// 收藏夹的ID
 	// 收藏夹ID本身有索引
 	Cid   int64 `gorm:"index"`
 	Utime int64
 	Ctime int64
+}
+
+type UserRecordBiz struct {
+	Id    int64  `gorm:"primaryKey,autoIncrement"`
+	Uid   int64  `gorm:"index:uid_biz_id,unique"`
+	BizId int64  `gorm:"index:uid_biz_id,unique"`
+	Biz   string `gorm:"type:varchar(128);index:uid_biz_id,unique"`
+	Ctime int64
+	Utime int64
 }
