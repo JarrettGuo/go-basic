@@ -2,6 +2,7 @@ package web
 
 import (
 	"go-basic/webook/internal/domain"
+	"go-basic/webook/internal/errs"
 	"go-basic/webook/internal/service"
 	ijwt "go-basic/webook/internal/web/jwt"
 	"go-basic/webook/pkg/ginx"
@@ -251,15 +252,15 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context, req LoginReq) (Result, error) {
 	// 调用 service 层的登录方法
 	user, err := u.svc.Login(ctx, req.Email, req.Password)
 	if err == service.ErrInvalidUserOrPassword {
-		return Result{Code: 4, Msg: "账户或密码错误"}, nil
+		return Result{Code: errs.UserInvalidOrPassword, Msg: "账户或密码错误"}, nil
 	}
 	if err != nil {
-		return Result{Code: 5, Msg: "系统错误"}, err
+		return Result{Code: errs.ArticleInternalServerErr, Msg: "系统错误"}, err
 	}
 
 	// 用 JWT 设置登录态
 	if err = u.SetLoginToken(ctx, user.Id); err != nil {
-		return Result{Code: 5, Msg: "系统错误"}, err
+		return Result{Code: errs.ArticleInternalServerErr, Msg: "系统错误"}, err
 	}
 	return Result{Msg: "登录成功"}, nil
 }

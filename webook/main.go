@@ -4,11 +4,13 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
 )
 
 func main() {
 	initViper()
+	initPrometheus()
 	app := InitWebServer()
 	for _, c := range app.consumers {
 		err := c.Start()
@@ -22,6 +24,13 @@ func main() {
 	})
 	// 启动服务器
 	server.Run(":8080")
+}
+
+func initPrometheus() {
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(":8081", nil)
+	}()
 }
 
 func initViper() {

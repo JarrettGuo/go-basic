@@ -26,3 +26,24 @@ type PublishedArticleV1 struct {
 	Ctime    int64  `bson:"ctime,omitempty"`
 	Utime    int64  `bson:"utime,omitempty"`
 }
+
+// type model struct {
+// }
+
+// func (u model) BeforeCreate(tx *gorm.DB) (err error) {
+// 	startTime := time.Now()
+// 	tx.Set("gorm:started_at", startTime)
+// 	slog.Default().Info("这个是BeforeCreate")
+// 	return nil
+// }
+
+// func (u model) AfterCreate(tx *gorm.DB) (err error) {
+// 	val, _ := tx.Get("gorm:started_at")
+// 	startTime, ok := val.(time.Time)
+// 	if !ok {
+// 		return nil
+// 	}
+// 	duration := time.Since(startTime)
+// 	slog.Default().Info("这个是AfterCreate")
+// 	return nil
+// }

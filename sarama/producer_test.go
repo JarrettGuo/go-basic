@@ -13,9 +13,12 @@ var address = []string{"localhost:9094"}
 func TestSyncProducer(t *testing.T) {
 	cfg := sarama.NewConfig()
 	cfg.Producer.Return.Successes = true
+	// 指定分区器
 	cfg.Producer.Partitioner = sarama.NewHashPartitioner
+	// 新建同步生产者
 	producer, err := sarama.NewSyncProducer(address, cfg)
 	assert.NoError(t, err)
+	// 发送消息
 	_, _, err = producer.SendMessage(&sarama.ProducerMessage{
 		// 主题
 		Topic: "test_topic",
@@ -81,6 +84,20 @@ func TestAsyncProducer(t *testing.T) {
 			t.Log("发送成功", msgCh)
 		}
 	}
+}
+
+func TestReadEvent(t *testing.T) {
+	cfg := sarama.NewConfig()
+	cfg.Producer.Return.Successes = true
+	producer, err := sarama.NewSyncProducer(address, cfg)
+	assert.NoError(t, err)
+	for i := 0; i < 100; i++ {
+		_, _, err = producer.SendMessage(&sarama.ProducerMessage{
+			Topic: "read_article",
+			Value: sarama.StringEncoder(`{"uid":123,"aid":1}`),
+		})
+	}
+	assert.NoError(t, err)
 }
 
 type JSONEncoder[T any] struct {
