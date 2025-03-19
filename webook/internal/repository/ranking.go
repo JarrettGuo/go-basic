@@ -8,18 +8,36 @@ import (
 
 type RankingRepository interface {
 	ReplaceTopN(ctx context.Context, arts []domain.Article) error
+	GetTopN(ctx context.Context) ([]domain.Article, error)
 }
 
 type CacheRankingRepository struct {
-	c cache.RankingCache
+	redis cache.RankingCache
+	local cache.RankingLocalCache
 }
 
-func NewRankingRepository(c cache.RankingCache) RankingRepository {
+func NewRankingRepository(redis cache.RankingCache, local cache.RankingLocalCache) RankingRepository {
 	return &CacheRankingRepository{
-		c: c,
+		redis: redis,
+		local: local,
 	}
 }
 
 func (c *CacheRankingRepository) ReplaceTopN(ctx context.Context, arts []domain.Article) error {
-	return c.c.Set(ctx, arts)
+	_ = c.local.Set(ctx, arts)
+	return c.redis.Set(ctx, arts)
+}
+
+func (c *CacheRankingRepository) GetTopN(ctx context.Context) ([]domain.Article, error) {
+	data, err := c.local.Get(ctx)
+	if err == nil {
+		return data, nil
+	}
+	data, err = c.redis.Get(ctx)
+	if err == nil {
+		c.local.Set(ctx, data)
+	} else {
+		return c.local.ForceGet(ctx)
+	}
+	return data, err
 }
