@@ -137,5 +137,7 @@ func (dao *GORMArticleDAO) GetPubById(ctx context.Context, id int64) (PublishedA
 }
 
 func (dao *GORMArticleDAO) ListPub(ctx context.Context, start time.Time, offset int, limit int) ([]Article, error) {
-	return []Article{}, nil
+	var res []Article
+	err := dao.db.WithContext(ctx).Where("utime<?", start.UnixMilli()).Order("utime DESC").Offset(offset).Limit(limit).Find(&res).Error
+	return res, err
 }

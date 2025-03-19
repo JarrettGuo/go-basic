@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -18,12 +19,23 @@ func main() {
 			panic(err)
 		}
 	}
+	// 启动定时任务
+	app.cron.Start()
+
 	server := app.server
 	server.GET("/hello", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "hello，启动成功了！")
 	})
 	// 启动服务器
 	server.Run(":8080")
+
+	ctx := app.cron.Stop()
+	// 超时强制退出，防止有些任务执行时间过长
+	tm := time.NewTimer(time.Minute * 10)
+	select {
+	case <-tm.C:
+	case <-ctx.Done():
+	}
 }
 
 func initPrometheus() {

@@ -9,12 +9,14 @@ import (
 	"time"
 )
 
+//go:generate mockgen -source=article.go -package=svcmocks -destination=mocks/article.mock.go ArticleService
 type ArticleService interface {
 	Save(ctx context.Context, art domain.Article) (int64, error)
 	Publish(ctx context.Context, art domain.Article) (int64, error)
 	PublishV1(ctx context.Context, art domain.Article) (int64, error)
 	Withdraw(ctx context.Context, art domain.Article) error
 	List(ctx context.Context, uid int64, offset, limit int) ([]domain.Article, error)
+	ListPub(ctx context.Context, offset, limit int, start time.Time) ([]domain.Article, error)
 	GetById(ctx context.Context, id int64) (domain.Article, error)
 	GetPublishedById(ctx context.Context, id, uid int64) (domain.Article, error)
 }
@@ -84,6 +86,10 @@ func NewArticleServiceV2(repo repository.ArticleRepository, l logger.Logger, pro
 		producer: producer,
 		ch:       make(chan readInfo, 10),
 	}
+}
+
+func (a *articleService) ListPub(ctx context.Context, offset, limit int, start time.Time) ([]domain.Article, error) {
+	return a.repo.ListPub(ctx, offset, limit, start)
 }
 
 func (a *articleService) GetById(ctx context.Context, id int64) (domain.Article, error) {

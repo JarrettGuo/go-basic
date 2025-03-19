@@ -97,3 +97,7 @@ func (o *S3DAO) Sync(ctx context.Context, art Article) (int64, error) {
 func (o *S3DAO) SyncStatus(ctx context.Context, author, id int64, status uint8) error {
 	panic("implement me")
 }
+
+func (o *S3DAO) ListPub(ctx context.Context, start time.Time, offset int, limit int) ([]Article, error) {
+	panic("implement me")
+}

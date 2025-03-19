@@ -17,6 +17,12 @@ import (
 	"github.com/google/wire"
 )
 
+var rankingServiceSet = wire.NewSet(
+	repository.NewRankingRepository,
+	cache.NewRankingRedisCache,
+	service.NewBatchRankingService,
+)
+
 func InitWebServer() *App {
 	wire.Build(
 		ioc.InitDB,
@@ -26,6 +32,10 @@ func InitWebServer() *App {
 		ioc.InitSaramaClient,
 		ioc.InitSyncProducer,
 		ioc.InitConsumers,
+
+		rankingServiceSet,
+		ioc.InitJob,
+		ioc.InitRankingJob,
 
 		// consumer
 		artEvt.NewKafkaProducer,
