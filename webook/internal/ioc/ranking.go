@@ -6,11 +6,15 @@ import (
 	"go-basic/webook/pkg/logger"
 	"time"
 
+	rlock "github.com/gotomicro/redis-lock"
 	"github.com/robfig/cron/v3"
 )
 
-func InitRankingJob(svc service.RankingService) *job.RankingJob {
-	return job.NewRankingJob(svc, time.Second*30)
+func InitRankingJob(svc service.RankingService, l logger.Logger, rlockClient *rlock.Client) (*job.RankingJob, func()) {
+	j := job.NewRankingJob(svc, time.Second*30, rlockClient, l)
+	return j, func() {
+		j.Close()
+	}
 }
 
 func InitJob(l logger.Logger, rankingJob *job.RankingJob) *cron.Cron {
